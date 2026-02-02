@@ -1,4 +1,3 @@
-#include "SDL3/SDL_init.h"
 #include "utils.hpp"
 
 #include <imgui.h>
@@ -9,13 +8,59 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <SDL3_shadercross/SDL_shadercross.h>
+
 
 SDL_Window* window = NULL;
 SDL_GPUDevice* device = NULL;
 SDL_GPUGraphicsPipeline* pipeline = NULL;
 
+
+static SDL_AppResult draw() {
+  SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+  if (commandBuffer == NULL)
+  {
+    SDL_Log("AcquireGPUCommandBuffer failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  SDL_GPUTexture* swapchainTexture = NULL;
+  if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+    commandBuffer, window, &swapchainTexture, NULL, NULL))
+  {
+    SDL_Log("WaitAndAcquireGPUSwapchainTexture failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  if (swapchainTexture == NULL)
+  {
+    SDL_SubmitGPUCommandBuffer(commandBuffer);
+    return SDL_APP_CONTINUE;
+  }
+
+  SDL_GPUColorTargetInfo colorTargetInfo {
+    .texture = swapchainTexture,
+    .clear_color {0.1f, 0.1f, 0.1f, 1.0f},
+    .load_op = SDL_GPU_LOADOP_CLEAR,
+    .store_op = SDL_GPU_STOREOP_STORE,
+  };
+
+  SDL_GPURenderPass* renderPass =
+    SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, NULL);
+  SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+
+  SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
+  SDL_EndGPURenderPass(renderPass);
+
+  SDL_SubmitGPUCommandBuffer(commandBuffer);
+
+  return SDL_APP_CONTINUE;
+}
+
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+  // initialize SDL
   SDL_InitSubSystem(SDL_INIT_VIDEO);
 
   device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, true, NULL);
@@ -37,19 +82,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     SDL_Log("ClaimWindowForGPUDevice failed");
   }
 
-
-  SDL_GPUShader* vertexShader = loadShader(device, "raw_triangle.vert", 0, 0, 0, 0);
-  if (vertexShader == NULL)
+  // create shaders
+  SDL_GPUShader* vertexShader = NULL;
+  SDL_GPUShader* fragmentShader = NULL;
+  SDL_AppResult shaderResult = createShaders(device, &vertexShader, &fragmentShader);
+  if (shaderResult != SDL_APP_CONTINUE)
   {
-    SDL_Log("Failed to load vertex shader");
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_GPUShader* fragmentShader = loadShader(device, "raw_triangle.frag", 0, 0, 0, 0);
-  if (fragmentShader == NULL)
-  {
-    SDL_Log("Failed to load fragment shader");
-    return SDL_APP_FAILURE;
+    return shaderResult;
   }
 
   // create the pipeline
@@ -97,11 +136,18 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+  SDL_AppResult drawResult = draw();
+  if (drawResult != SDL_APP_CONTINUE)
+  {
+    return drawResult;
+  }
+
   return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+  SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
   SDL_ReleaseWindowFromGPUDevice(device, window);
   SDL_DestroyWindow(window);
   SDL_DestroyGPUDevice(device);

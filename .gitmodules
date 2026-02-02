@@ -5,3 +5,9 @@
 	path = external/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "external/SDL_shadercross"]
+	path = external/SDL_shadercross
+	url = https://github.com/libsdl-org/SDL_shadercross.git
+[submodule "external/glm"]
+	path = external/glm
+	url = https://github.com/g-truc/glm.git

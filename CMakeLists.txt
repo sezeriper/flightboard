@@ -20,6 +20,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # This assumes the SDL source is available in external/SDL
 add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
+# Add SDL_shadercross
+set(SDLSHADERCROSS_VENDORED ON CACHE BOOL "Use vendored dependencies" FORCE)
+set(SDLSHADERCROSS_SPIRVCROSS_SHARED OFF CACHE BOOL "Link to shared library variants of dependencies" FORCE)
+set(SDLSHADERCROSS_DXC ON CACHE BOOL "Enable HLSL compilation via DXC" FORCE)
+add_subdirectory(external/SDL_shadercross EXCLUDE_FROM_ALL)
+
 # Add imgui
 set(imgui_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/imgui")
 add_library(imgui
@@ -37,4 +43,4 @@ target_link_libraries(imgui PRIVATE SDL3::SDL3)
 add_executable(flightboard src/main.cpp)
 
 # Link to the actual SDL3 library.
-target_link_libraries(flightboard PRIVATE SDL3::SDL3 imgui)
+target_link_libraries(flightboard PRIVATE SDL3::SDL3 imgui SDL3_shadercross::SDL3_shadercross)
