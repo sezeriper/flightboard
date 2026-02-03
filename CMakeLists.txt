@@ -40,7 +40,5 @@ target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/
 target_link_libraries(imgui PRIVATE SDL3::SDL3)
 
 # Create your game executable target as usual
-add_executable(flightboard src/main.cpp)
-
-# Link to the actual SDL3 library.
-target_link_libraries(flightboard PRIVATE SDL3::SDL3 imgui SDL3_shadercross::SDL3_shadercross)
+add_executable(flightboard src/main.cpp src/app.cpp)
+target_link_libraries(flightboard PRIVATE SDL3::SDL3 SDL3_shadercross::SDL3_shadercross imgui)
