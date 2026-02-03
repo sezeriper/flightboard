@@ -9,13 +9,13 @@
 static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader, SDL_GPUShader** fragmentShader) {
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
-  void* vertexShaderSrc = SDL_LoadFile("content/shaders/raw_triangle.vert.hlsl", NULL);
+  void* vertexShaderSrc = SDL_LoadFile("content/shaders/position_color.vert.hlsl", NULL);
   if (vertexShaderSrc == NULL)
   {
     SDL_Log("Failed to load HLSL vertex shader: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
-  void* fragmentShaderSrc = SDL_LoadFile("content/shaders/solid_color.frag.hlsl", NULL);
+  void* fragmentShaderSrc = SDL_LoadFile("content/shaders/color.frag.hlsl", NULL);
   if (fragmentShaderSrc == NULL)
   {
     SDL_Log("Failed to load HLSL fragment shader: %s", SDL_GetError());
@@ -87,11 +87,11 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
   *vertexShader =
     SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
       device, &vertSPIRVInfo, &vertexSPIRVMetadata->resource_info, 0);
-  
+
   *fragmentShader =
     SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
       device, &fragSPIRVInfo, &fragmentSPIRVMetadata->resource_info, 0);
-  
+
   SDL_free((void*)vertexSPIRVMetadata);
   SDL_free((void*)fragmentSPIRVMetadata);
   SDL_free(vertexSPIRV);

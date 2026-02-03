@@ -26,6 +26,9 @@ set(SDLSHADERCROSS_SPIRVCROSS_SHARED OFF CACHE BOOL "Link to shared library vari
 set(SDLSHADERCROSS_DXC ON CACHE BOOL "Enable HLSL compilation via DXC" FORCE)
 add_subdirectory(external/SDL_shadercross EXCLUDE_FROM_ALL)
 
+# add glm
+add_subdirectory(external/glm)
+
 # Add imgui
 set(imgui_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/imgui")
 add_library(imgui
@@ -39,6 +42,7 @@ add_library(imgui
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 target_link_libraries(imgui PRIVATE SDL3::SDL3)
 
+
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
-target_link_libraries(flightboard PRIVATE SDL3::SDL3 SDL3_shadercross::SDL3_shadercross imgui)
+target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross)

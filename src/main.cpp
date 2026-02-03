@@ -6,10 +6,13 @@
 
 #include <SDL3_shadercross/SDL_shadercross.h>
 
+#include <chrono>
+using namespace std::chrono_literals;
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
   // must be deleted in SDL_AppQuit
-  auto state = new flb::app::State();
+  auto state = new flb::app::State;
   flb::app::init(*state);
   *appstate = state;
 
@@ -27,12 +30,29 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
-  auto state = (flb::app::State*)appstate;
-  SDL_AppResult drawResult = flb::app::draw(*state);
+  auto& state = *static_cast<flb::app::State*>(appstate);
+  SDL_AppResult drawResult = flb::app::draw(state);
 
   if (drawResult != SDL_APP_CONTINUE)
   {
-    return drawResult;
+    return SDL_APP_FAILURE;
+  }
+
+
+  // print fps
+  const auto now = std::chrono::steady_clock::now();
+  if (state.startTime.time_since_epoch().count() == 0) {
+      state.startTime = now;
+      return SDL_APP_CONTINUE;
+  }
+
+  const auto dt = now - state.startTime;
+  ++state.frameCount;
+  if (dt >= 1s) {
+    const auto fps = static_cast<double>(state.frameCount) / std::chrono::duration<double>(dt).count();
+    SDL_Log("FPS: %.2f", fps);
+    state.startTime = now;
+    state.frameCount = 0;
   }
 
   return SDL_APP_CONTINUE;
