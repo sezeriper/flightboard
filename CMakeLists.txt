@@ -46,3 +46,4 @@ target_link_libraries(imgui PRIVATE SDL3::SDL3)
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
 target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross)
+target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)

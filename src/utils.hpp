@@ -5,27 +5,45 @@
 
 #include <SDL3_shadercross/SDL_shadercross.h>
 
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+static std::string readFile(std::filesystem::path path) {
+  std::ifstream stream(path, std::ios::in | std::ios::binary);
+  if (!stream.is_open()) {
+    SDL_Log("Can't open file %s", path.c_str());
+    return {};
+  }
+
+  const auto size = std::filesystem::file_size(path);
+  std::string result;
+  result.resize(size);
+
+  stream.read(result.data(), size);
+
+  return result;
+}
 
 static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader, SDL_GPUShader** fragmentShader) {
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
-  void* vertexShaderSrc = SDL_LoadFile("content/shaders/position_color.vert.hlsl", NULL);
-  if (vertexShaderSrc == NULL)
+  const auto vertexShaderSrc = readFile("content/shaders/spinning_cube.vert.hlsl");
+  if (vertexShaderSrc.empty())
   {
-    SDL_Log("Failed to load HLSL vertex shader: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
-  void* fragmentShaderSrc = SDL_LoadFile("content/shaders/color.frag.hlsl", NULL);
-  if (fragmentShaderSrc == NULL)
+
+  const auto fragmentShaderSrc = readFile("content/shaders/color.frag.hlsl");
+  if (fragmentShaderSrc.empty())
   {
-    SDL_Log("Failed to load HLSL fragment shader: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
 
   SDL_ShaderCross_Init();
 
   const SDL_ShaderCross_HLSL_Info vertexShaderInfo {
-    .source = (const char*)vertexShaderSrc,
+    .source = vertexShaderSrc.c_str(),
     .entrypoint = "main",
     .include_dir = NULL,
     .defines = NULL,
@@ -34,7 +52,7 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
   };
 
   const SDL_ShaderCross_HLSL_Info fragmentShaderInfo {
-    .source = (const char*)fragmentShaderSrc,
+    .source = fragmentShaderSrc.c_str(),
     .entrypoint = "main",
     .include_dir = NULL,
     .defines = NULL,
@@ -56,9 +74,6 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
     SDL_Log("Failed to compile fragment shader HLSL to SPIR-V");
     return SDL_APP_FAILURE;
   }
-
-  SDL_free(vertexShaderSrc);
-  SDL_free(fragmentShaderSrc);
 
   // compile SPIR-V to backend-specific shader code
   const SDL_ShaderCross_SPIRV_Info vertSPIRVInfo {

@@ -16,14 +16,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   flb::app::init(*state);
   *appstate = state;
 
+  state->lastFrameTime = std::chrono::steady_clock::now();
   return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 {
-  if (event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+  auto& state = *static_cast<flb::app::State*>(appstate);
+  SDL_AppResult result = flb::app::handleEvent(state, event);
+  if (result != SDL_APP_CONTINUE)
   {
-    return SDL_APP_SUCCESS;
+    return SDL_APP_FAILURE;
   }
   return SDL_APP_CONTINUE;
 }
@@ -31,28 +34,21 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
   auto& state = *static_cast<flb::app::State*>(appstate);
-  SDL_AppResult drawResult = flb::app::draw(state);
 
-  if (drawResult != SDL_APP_CONTINUE)
+  const auto now = std::chrono::steady_clock::now();
+  const auto dt = std::chrono::duration<float>(now - state.lastFrameTime).count();
+  state.lastFrameTime = now;
+
+  SDL_AppResult result = flb::app::update(state, dt);
+  if (result != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
   }
 
-
-  // print fps
-  const auto now = std::chrono::steady_clock::now();
-  if (state.startTime.time_since_epoch().count() == 0) {
-      state.startTime = now;
-      return SDL_APP_CONTINUE;
-  }
-
-  const auto dt = now - state.startTime;
-  ++state.frameCount;
-  if (dt >= 1s) {
-    const auto fps = static_cast<double>(state.frameCount) / std::chrono::duration<double>(dt).count();
-    SDL_Log("FPS: %.2f", fps);
-    state.startTime = now;
-    state.frameCount = 0;
+  result = flb::app::draw(state);
+  if (result != SDL_APP_CONTINUE)
+  {
+    return SDL_APP_FAILURE;
   }
 
   return SDL_APP_CONTINUE;
