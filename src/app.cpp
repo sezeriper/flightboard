@@ -56,13 +56,13 @@ static SDL_AppResult createPipeline(State& state)
     {
       .format = SDL_GetGPUSwapchainTextureFormat(state.device, state.window),
       .blend_state {
-        .enable_blend = true,
-        .color_blend_op = SDL_GPU_BLENDOP_ADD,
-        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .color_blend_op = SDL_GPU_BLENDOP_ADD,
         .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-        .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+        .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+        .enable_blend = true,
       },
     }
   };
@@ -282,7 +282,9 @@ SDL_AppResult init(State& state)
 {
   SDL_InitSubSystem(SDL_INIT_VIDEO);
 
-  state.device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, true, NULL);
+  state.device = SDL_CreateGPUDevice(
+    SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
+    true, NULL);
   if (state.device == NULL)
   {
     SDL_Log("CreateGPUDevice failed: %s", SDL_GetError());
@@ -290,7 +292,7 @@ SDL_AppResult init(State& state)
   }
 
   state.window = SDL_CreateWindow("flightboard v0.0.1", 1280, 720,
-    SDL_WINDOW_RESIZABLE | SDL_WINDOW_METAL | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    SDL_WINDOW_HIGH_PIXEL_DENSITY);
   if (state.window == NULL)
   {
     SDL_Log("CreateWindow failed %s", SDL_GetError());
