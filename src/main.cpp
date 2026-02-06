@@ -12,18 +12,22 @@ using namespace std::chrono_literals;
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
   // must be deleted in SDL_AppQuit
-  auto state = new flb::app::State;
-  flb::app::init(*state);
-  *appstate = state;
+  auto app = new flb::App();
+  SDL_AppResult result = app->init();
+  if (result != SDL_APP_CONTINUE) {
+    delete app;
+    return result;
+  }
+  *appstate = app;
 
-  state->lastFrameTime = std::chrono::steady_clock::now();
+  app->lastFrameTime = std::chrono::steady_clock::now();
   return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 {
-  auto& state = *static_cast<flb::app::State*>(appstate);
-  SDL_AppResult result = flb::app::handleEvent(state, event);
+  auto* app = static_cast<flb::App*>(appstate);
+  SDL_AppResult result = app->handleEvent(event);
   if (result != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
@@ -33,19 +37,19 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
-  auto& state = *static_cast<flb::app::State*>(appstate);
+  auto* app = static_cast<flb::App*>(appstate);
 
   const auto now = std::chrono::steady_clock::now();
-  const auto dt = std::chrono::duration<float>(now - state.lastFrameTime).count();
-  state.lastFrameTime = now;
+  const auto dt = std::chrono::duration<float>(now - app->lastFrameTime).count();
+  app->lastFrameTime = now;
 
-  SDL_AppResult result = flb::app::update(state, dt);
+  SDL_AppResult result = app->update(dt);
   if (result != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
   }
 
-  result = flb::app::draw(state);
+  result = app->draw();
   if (result != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
@@ -56,7 +60,9 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result)
 {
-  auto state = (flb::app::State*)appstate;
-  flb::app::cleanup(*state);
-  delete state;
+  auto app = (flb::App*)appstate;
+  if (app) {
+    app->cleanup();
+    delete app;
+  }
 }

@@ -5,18 +5,41 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include <array>
 #include <chrono>
+#include <span>
 
 namespace flb
 {
-namespace app
-{
-  struct Uniforms {
-    glm::mat4 modelViewProjection{1.0f};
-  };
+  class App {
+  public:
+    App() = default;
+    ~App() = default;
 
-  struct State {
+    SDL_AppResult init();
+    void cleanup();
+    SDL_AppResult update(float dt);
+    SDL_AppResult draw();
+    SDL_AppResult handleEvent(SDL_Event* event);
+
+    std::chrono::steady_clock::time_point lastFrameTime{};
+
+  private:
+    struct Uniforms {
+      glm::mat4 modelViewProjection{1.0f};
+    };
+
+    struct Vertex {
+      glm::vec4 position;
+      glm::vec4 color;
+    };
+
+    using Index = Uint16;
+
+    SDL_AppResult createPipeline();
+    SDL_AppResult createVertexBuffer(const std::span<const Vertex> vertices);
+    SDL_AppResult createIndexBuffer(const std::span<const Index> indices);
+    SDL_AppResult createDepthTexture(Uint32 width, Uint32 height);
+
     SDL_Window* window = NULL;
     SDL_GPUDevice* device = NULL;
     SDL_GPUGraphicsPipeline* pipeline = NULL;
@@ -27,40 +50,5 @@ namespace app
     Uniforms uniforms;
     Camera camera;
     float cubeRotation = 0.0f;
-    std::chrono::steady_clock::time_point lastFrameTime{};
   };
-
-  struct Vertex {
-    glm::vec4 position;
-    glm::vec4 color;
-  };
-
-  // Cube vertices
-  static const std::array VERTICES {
-    Vertex{{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}}, // 0
-    Vertex{{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}, // 1
-    Vertex{{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}, // 2
-    Vertex{{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}}, // 3
-    Vertex{{-0.5f, -0.5f,  0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}}, // 4
-    Vertex{{ 0.5f, -0.5f,  0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}}, // 5
-    Vertex{{ 0.5f,  0.5f,  0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 6
-    Vertex{{-0.5f,  0.5f,  0.5f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}  // 7
-  };
-
-  // Cube indices
-  static const std::array<std::uint16_t, 36> INDICES {
-    0, 3, 2, 2, 1, 0, // back face
-    4, 5, 6, 6, 7, 4, // front face
-    0, 4, 7, 7, 3, 0, // left face
-    1, 2, 6, 6, 5, 1, // right face
-    3, 7, 6, 6, 2, 3, // top face
-    0, 1, 5, 5, 4, 0  // bottom face
-  };
-
-  SDL_AppResult init(State& state);
-  void cleanup(const State& state);
-  SDL_AppResult update(State& state, float dt);
-  SDL_AppResult draw(const State& state);
-  SDL_AppResult handleEvent(State& state, SDL_Event* event);
-} // namespace app
 } // namespace flb
