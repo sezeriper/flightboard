@@ -43,7 +43,10 @@ target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/
 target_link_libraries(imgui PRIVATE SDL3::SDL3)
 
 
+set(FASTGLTF_COMPILE_AS_CPP20 ON)
+add_subdirectory(external/fastgltf)
+
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
-target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross)
+target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross fastgltf)
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)

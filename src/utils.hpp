@@ -9,7 +9,10 @@
 #include <fstream>
 #include <string>
 
-static std::string readFile(std::filesystem::path path) {
+namespace flb
+{
+static std::string readFile(std::filesystem::path path)
+{
   std::ifstream stream(path, std::ios::in | std::ios::binary);
   if (!stream.is_open()) {
     SDL_Log("Can't open file %s", path.c_str());
@@ -25,7 +28,8 @@ static std::string readFile(std::filesystem::path path) {
   return result;
 }
 
-static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader, SDL_GPUShader** fragmentShader) {
+static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader, SDL_GPUShader** fragmentShader)
+{
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
   const auto vertexShaderSrc = readFile("content/shaders/spinning_cube.vert.hlsl");
@@ -115,3 +119,4 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
 
   return SDL_APP_CONTINUE;
 }
+} // namespace flb

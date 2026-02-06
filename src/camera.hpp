@@ -6,7 +6,7 @@
 namespace flb {
 static const glm::vec3 UP{0.0f, 1.0f, 0.0f};
 
-struct Camera {
+class Camera {
 public:
   glm::mat4 getViewProjMat() const {
     return calcProjMat() * calcViewMat();
