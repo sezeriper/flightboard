@@ -46,7 +46,15 @@ target_link_libraries(imgui PRIVATE SDL3::SDL3)
 set(FASTGLTF_COMPILE_AS_CPP20 ON)
 add_subdirectory(external/fastgltf)
 
+set(ENTT_NO_MIXIN ON)
+# disable asserts and exceptions if Release build
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(ENTT_DISABLE_ASSERT ON)
+  set(ENTT_NO_EXCEPTION ON)
+endif()
+add_subdirectory(external/entt)
+
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
-target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross fastgltf)
+target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross fastgltf EnTT)
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)

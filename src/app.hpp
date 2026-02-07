@@ -2,14 +2,26 @@
 
 #include "camera.hpp"
 
+#include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
 #include <chrono>
-#include <span>
+#include <ranges>
+#include <type_traits>
 
 namespace flb
 {
+  struct Vertex {
+    glm::vec4 position;
+    glm::vec4 color;
+  };
+
+  using Index = Uint16;
+
+  template<typename T>
+  concept VertexOrIndex = std::is_same_v<T, Vertex> || std::is_same_v<T, Index>;
+
   class App {
   public:
     App() = default;
@@ -17,9 +29,9 @@ namespace flb
 
     SDL_AppResult init();
     void cleanup();
-    SDL_AppResult update(float dt);
-    SDL_AppResult draw();
     SDL_AppResult handleEvent(SDL_Event* event);
+    SDL_AppResult update(float dt);
+    SDL_AppResult draw() const;
 
     std::chrono::steady_clock::time_point lastFrameTime{};
 
@@ -28,27 +40,35 @@ namespace flb
       glm::mat4 modelViewProjection{1.0f};
     };
 
-    struct Vertex {
-      glm::vec4 position;
-      glm::vec4 color;
+    struct MeshData {
+      const std::vector<Vertex> vertices;
+      const std::vector<Index> indices;
     };
 
-    using Index = Uint16;
+    struct MeshGPUBuffers {
+      SDL_GPUBuffer* vertexBuffer;
+      SDL_GPUBuffer* indexBuffer;
+    };
+
+    using Transform = glm::mat4;
+
+    Camera camera;
+    entt::registry registry;
 
     SDL_AppResult createPipeline();
-    SDL_AppResult createVertexBuffer(const std::span<const Vertex> vertices);
-    SDL_AppResult createIndexBuffer(const std::span<const Index> indices);
     SDL_AppResult createDepthTexture(Uint32 width, Uint32 height);
+
+    template<typename R>
+    requires std::ranges::contiguous_range<R> &&
+             std::ranges::sized_range<R> &&
+             VertexOrIndex<std::ranges::range_value_t<R>>
+    SDL_AppResult uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffer) const;
+    SDL_AppResult uploadMeshToGPUBuffers(const MeshData& meshData) const;
 
     SDL_Window* window = NULL;
     SDL_GPUDevice* device = NULL;
     SDL_GPUGraphicsPipeline* pipeline = NULL;
-    SDL_GPUBuffer* vertexBuffer = NULL;
-    SDL_GPUBuffer* indexBuffer = NULL;
     SDL_GPUTexture* depthTexture = NULL;
 
-    Uniforms uniforms;
-    Camera camera;
-    float cubeRotation = 0.0f;
   };
 } // namespace flb
