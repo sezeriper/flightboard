@@ -1,10 +1,6 @@
 #include "app.hpp"
 #include "utils.hpp"
 
-#include <glm/glm.hpp>
-
-#include <algorithm>
-
 namespace flb
 {
 SDL_AppResult App::createPipeline()
@@ -32,13 +28,13 @@ SDL_AppResult App::createPipeline()
     {
       .location = 0,
       .buffer_slot = 0,
-      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
       .offset = offsetof(Vertex, position),
     },
     {
       .location = 1,
       .buffer_slot = 0,
-      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
       .offset = offsetof(Vertex, color),
 
     }
@@ -289,14 +285,14 @@ SDL_AppResult App::init()
   }
 
   const std::vector<Vertex> vertices {{
-    Vertex{{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}}, // 0
-    Vertex{{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}, // 1
-    Vertex{{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}, // 2
-    Vertex{{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}}, // 3
-    Vertex{{-0.5f, -0.5f,  0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}}, // 4
-    Vertex{{ 0.5f, -0.5f,  0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}}, // 5
-    Vertex{{ 0.5f,  0.5f,  0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 6
-    Vertex{{-0.5f,  0.5f,  0.5f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}  // 7
+    Vertex{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // 0
+    Vertex{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, // 1
+    Vertex{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}}, // 2
+    Vertex{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}}, // 3
+    Vertex{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 1.0f}}, // 4
+    Vertex{{ 0.5f, -0.5f,  0.5f}, {0.0f, 1.0f, 1.0f}}, // 5
+    Vertex{{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}, // 6
+    Vertex{{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 0.0f}}  // 7
   }};
 
   const std::vector<Index> indices {
@@ -310,15 +306,18 @@ SDL_AppResult App::init()
 
   camera.pos = {0.0f, 0.0f, 3.0f};
 
-  createModel({
-    vertices,
-    indices,
-  }, glm::translate(glm::mat4(1.0f), {-1.0f, 0.0f, 0.0f}));
+  // createModel({
+  //   vertices,
+  //   indices,
+  // }, glm::translate(glm::mat4(1.0f), {-1.0f, 0.0f, 0.0f}));
 
-  createModel({
-    vertices,
-    indices,
-  }, glm::translate(glm::mat4(1.0f), {1.0f, 0.0f, 0.0f}));
+  // createModel({
+  //   vertices,
+  //   indices,
+  // }, glm::translate(glm::mat4(1.0f), {1.0f, 0.0f, 0.0f}));
+
+  const auto mesh = loadMesh("content/meshes/floatplane.obj");
+  createModel(mesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 
   return SDL_APP_CONTINUE;
 }

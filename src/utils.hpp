@@ -7,6 +7,8 @@
 
 #include <tiny_obj_loader.h>
 
+#include "app.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -120,5 +122,52 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
   SDL_ShaderCross_Quit();
 
   return SDL_APP_CONTINUE;
+}
+
+static MeshData loadMesh(const std::filesystem::path& path)
+{
+  tinyobj::ObjReaderConfig reader_config;
+  reader_config.mtl_search_path = path.parent_path().string();
+  reader_config.triangulate = true;
+
+  tinyobj::ObjReader reader;
+
+  if (!reader.ParseFromFile(path.string(), reader_config)) {
+    if (!reader.Error().empty()) {
+      SDL_Log("TinyObjReader: %s", reader.Error().c_str());
+    }
+    return {};
+  }
+
+  if (!reader.Warning().empty()) {
+    SDL_Log("TinyObjReader: %s", reader.Warning().c_str());
+  }
+
+  const auto& attrib = reader.GetAttrib();
+  const auto& shapes = reader.GetShapes();
+
+  std::vector<Vertex> vertices;
+  std::vector<Index> indices;
+
+  vertices.reserve(attrib.vertices.size() / 3);
+
+  for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
+    vertices.emplace_back(Vertex{
+      .position = {
+        attrib.vertices[i + 0],
+        attrib.vertices[i + 1],
+        attrib.vertices[i + 2]
+      },
+      .color = {0.7f, 0.1f, 0.1f}
+    });
+  }
+
+  for (const auto& shape : shapes) {
+    for (const auto& index : shape.mesh.indices) {
+      indices.push_back(static_cast<Index>(index.vertex_index));
+    }
+  }
+
+  return { std::move(vertices), std::move(indices) };
 }
 } // namespace flb

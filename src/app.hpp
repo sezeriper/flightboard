@@ -13,14 +13,19 @@
 namespace flb
 {
   struct Vertex {
-    glm::vec4 position;
-    glm::vec4 color;
+    glm::vec3 position;
+    glm::vec3 color;
   };
 
   using Index = Uint16;
 
   template<typename T>
   concept VertexOrIndex = std::is_same_v<T, Vertex> || std::is_same_v<T, Index>;
+
+  struct MeshData {
+    const std::vector<Vertex> vertices;
+    const std::vector<Index> indices;
+  };
 
   class App {
   public:
@@ -38,11 +43,6 @@ namespace flb
   private:
     struct Uniforms {
       glm::mat4 modelViewProjection{1.0f};
-    };
-
-    struct MeshData {
-      const std::vector<Vertex> vertices;
-      const std::vector<Index> indices;
     };
 
     struct MeshGPUBuffers {

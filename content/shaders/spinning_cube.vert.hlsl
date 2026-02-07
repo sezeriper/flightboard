@@ -11,8 +11,8 @@
 
 struct InputVertex
 {
-    float4 Position : TEXCOORD0;
-    float4 Color : TEXCOORD1;
+    float3 Position : TEXCOORD0;
+    float3 Color : TEXCOORD1;
 };
 
 struct OutputVertex
@@ -29,7 +29,7 @@ cbuffer UniformBlock : register(b0, space1)
 OutputVertex main(InputVertex vertex_in)
 {
     OutputVertex vertex_out;
-    vertex_out.Position = mul(ModelViewProjectionMatrix, vertex_in.Position);
-    vertex_out.Color = vertex_in.Color;
+    vertex_out.Position = mul(ModelViewProjectionMatrix, float4(vertex_in.Position, 1.0));
+    vertex_out.Color = float4(vertex_in.Color, 1.0);
     return vertex_out;
 }
