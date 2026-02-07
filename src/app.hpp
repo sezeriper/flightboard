@@ -65,7 +65,7 @@ namespace flb
              VertexOrIndex<std::ranges::range_value_t<R>>
     SDL_AppResult uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffer) const;
     SDL_AppResult uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffers& outBuffers) const;
-    SDL_AppResult createModel(const MeshData& meshData);
+    SDL_AppResult createModel(const MeshData& meshData, const Transform& transform);
 
     SDL_Window* window = NULL;
     SDL_GPUDevice* device = NULL;

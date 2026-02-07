@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 
 #include <algorithm>
-#include <array>
 
 namespace flb
 {
@@ -214,7 +213,7 @@ SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffe
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::createModel(const MeshData& meshData)
+SDL_AppResult App::createModel(const MeshData& meshData, const Transform& transform)
 {
   MeshGPUBuffers buffers;
   SDL_AppResult result = uploadMeshToGPUBuffers(meshData, buffers);
@@ -225,8 +224,7 @@ SDL_AppResult App::createModel(const MeshData& meshData)
   }
 
   const auto entity = registry.create();
-  // create an identity transform for entity
-  registry.emplace<Transform>(entity, 1.0f);
+  registry.emplace<Transform>(entity, transform);
   registry.emplace<MeshGPUBuffers>(entity, buffers);
   return SDL_APP_CONTINUE;
 }
@@ -310,15 +308,17 @@ SDL_AppResult App::init()
     0, 1, 5, 5, 4, 0  // bottom face
   };
 
-  createModel({
-    vertices,
-    indices,
-  });
+  camera.pos = {0.0f, 0.0f, 3.0f};
 
   createModel({
     vertices,
     indices,
-  });
+  }, glm::translate(glm::mat4(1.0f), {-1.0f, 0.0f, 0.0f}));
+
+  createModel({
+    vertices,
+    indices,
+  }, glm::translate(glm::mat4(1.0f), {1.0f, 0.0f, 0.0f}));
 
   return SDL_APP_CONTINUE;
 }
@@ -360,16 +360,11 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
 
 SDL_AppResult App::update(float dt)
 {
-  camera.pos = {0.0f, 0.0f, 3.0f};
-
   auto view = registry.view<Transform>();
-  std::uint32_t counter = 0;
   for (auto entity: view)
   {
     auto& transform = view.get<Transform>(entity);
     transform = glm::rotate(transform, dt, UP);
-    transform = glm::translate(transform, glm::vec3(counter * dt, 0.0f, 0.0f));
-    ++counter;
   }
 
   return SDL_APP_CONTINUE;

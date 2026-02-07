@@ -5,6 +5,8 @@
 
 #include <SDL3_shadercross/SDL_shadercross.h>
 
+#include <tiny_obj_loader.h>
+
 #include <filesystem>
 #include <fstream>
 #include <string>

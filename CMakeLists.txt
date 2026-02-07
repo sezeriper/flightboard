@@ -54,7 +54,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 add_subdirectory(external/entt)
 
+add_subdirectory(external/tinyobjloader)
+
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
-target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross fastgltf EnTT)
+target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross fastgltf EnTT tinyobjloader)
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)
