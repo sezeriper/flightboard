@@ -134,7 +134,7 @@ SDL_AppResult App::uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffe
     return SDL_APP_FAILURE;
   }
 
-  std::copy(data, mappedBuf);
+  std::ranges::copy(data, mappedBuf);
   SDL_UnmapGPUTransferBuffer(device, transferBuf);
   mappedBuf = NULL;
 
@@ -188,7 +188,7 @@ SDL_AppResult App::uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffe
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffers& buffers) const
+SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffers& outBuffers) const
 {
   SDL_GPUBuffer* vertexBuf;
   SDL_AppResult result = uploadDataToGPUBuffer(meshData.vertices, &vertexBuf);
@@ -197,6 +197,38 @@ SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffe
     SDL_Log("Failed to upload vertex buffer");
     return SDL_APP_FAILURE;
   }
+
+  SDL_GPUBuffer* indexBuf;
+  result = uploadDataToGPUBuffer(meshData.indices, &indexBuf);
+  if (result == SDL_APP_FAILURE)
+  {
+    SDL_Log("Failed to upload index buffer");
+    return SDL_APP_FAILURE;
+  }
+
+  outBuffers = {
+    .vertexBuffer = vertexBuf,
+    .indexBuffer = indexBuf,
+    .numOfIndices = static_cast<Uint32>(meshData.indices.size()),
+  };
+  return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult App::createModel(const MeshData& meshData)
+{
+  MeshGPUBuffers buffers;
+  SDL_AppResult result = uploadMeshToGPUBuffers(meshData, buffers);
+  if (result == SDL_APP_FAILURE)
+  {
+    SDL_Log("Failed to upload mesh data to gpu");
+    return SDL_APP_FAILURE;
+  }
+
+  const auto entity = registry.create();
+  // create an identity transform for entity
+  registry.emplace<Transform>(entity, 1.0f);
+  registry.emplace<MeshGPUBuffers>(entity, buffers);
+  return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult App::createDepthTexture(Uint32 width, Uint32 height)
@@ -258,7 +290,7 @@ SDL_AppResult App::init()
     return SDL_APP_FAILURE;
   }
 
-  const std::array<Vertex, 8> vertices {{
+  const std::vector<Vertex> vertices {{
     Vertex{{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}}, // 0
     Vertex{{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}}, // 1
     Vertex{{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}, // 2
@@ -269,7 +301,7 @@ SDL_AppResult App::init()
     Vertex{{-0.5f,  0.5f,  0.5f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}}  // 7
   }};
 
-  const std::array<Index, 36> indices {
+  const std::vector<Index> indices {
     0, 3, 2, 2, 1, 0, // back face
     4, 5, 6, 6, 7, 4, // front face
     0, 4, 7, 7, 3, 0, // left face
@@ -277,6 +309,16 @@ SDL_AppResult App::init()
     3, 7, 6, 6, 2, 3, // top face
     0, 1, 5, 5, 4, 0  // bottom face
   };
+
+  createModel({
+    vertices,
+    indices,
+  });
+
+  createModel({
+    vertices,
+    indices,
+  });
 
   return SDL_APP_CONTINUE;
 }
@@ -320,18 +362,17 @@ SDL_AppResult App::update(float dt)
 {
   camera.pos = {0.0f, 0.0f, 3.0f};
 
-//   cubeRotation += glm::radians(90.0f) * dt; // rotate 90 degrees per second
-//   glm::mat4 model = glm::rotate(
-//     glm::mat4{1.0f},
-//     cubeRotation,
-//     UP
-//   );
+  auto view = registry.view<Transform>();
+  std::uint32_t counter = 0;
+  for (auto entity: view)
+  {
+    auto& transform = view.get<Transform>(entity);
+    transform = glm::rotate(transform, dt, UP);
+    transform = glm::translate(transform, glm::vec3(counter * dt, 0.0f, 0.0f));
+    ++counter;
+  }
 
-//   glm::mat4 view = camera.getViewProjMat();
-
-//   uniforms.modelViewProjection = view * model;
-
-//   return SDL_APP_CONTINUE;
+  return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult App::draw() const
@@ -377,25 +418,28 @@ SDL_AppResult App::draw() const
     SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
   SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
-  SDL_PushGPUVertexUniformData(
-    commandBuffer, 0, &uniforms, sizeof(uniforms));
+  auto view = registry.view<MeshGPUBuffers, Transform>();
+  for (const auto [entity, buffers, transform]: view.each())
+  {
+    SDL_GPUBufferBinding vertexBufferBinding {
+      .buffer = buffers.vertexBuffer,
+      .offset = 0,
+    };
+    SDL_BindGPUVertexBuffers(
+      renderPass, 0, &vertexBufferBinding, 1);
 
-  SDL_GPUBufferBinding vertexBufferBinding {
-    .buffer = vertexBuffer,
-    .offset = 0,
-  };
-  SDL_BindGPUVertexBuffers(
-    renderPass, 0, &vertexBufferBinding, 1);
+    SDL_GPUBufferBinding indexBufferBinding {
+      .buffer = buffers.indexBuffer,
+      .offset = 0,
+    };
+    SDL_BindGPUIndexBuffer(
+      renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-  SDL_GPUBufferBinding indexBufferBinding {
-    .buffer = indexBuffer,
-    .offset = 0,
-  };
-  SDL_BindGPUIndexBuffer(
-    renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
-  // TODO: use actual index count instead of hardcoding 36
-  SDL_DrawGPUIndexedPrimitives(renderPass, 36, 1, 0, 0, 0);
+    const Uniforms uniforms { camera.getViewProjMat() * transform };
+    SDL_PushGPUVertexUniformData(
+      commandBuffer, 0, &uniforms, sizeof(uniforms));
+    SDL_DrawGPUIndexedPrimitives(renderPass, buffers.numOfIndices, 1, 0, 0, 0);
+  }
 
   SDL_EndGPURenderPass(renderPass);
   // end render pass

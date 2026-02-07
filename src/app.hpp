@@ -48,6 +48,7 @@ namespace flb
     struct MeshGPUBuffers {
       SDL_GPUBuffer* vertexBuffer;
       SDL_GPUBuffer* indexBuffer;
+      Uint32 numOfIndices;
     };
 
     using Transform = glm::mat4;
@@ -63,12 +64,12 @@ namespace flb
              std::ranges::sized_range<R> &&
              VertexOrIndex<std::ranges::range_value_t<R>>
     SDL_AppResult uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffer) const;
-    SDL_AppResult uploadMeshToGPUBuffers(const MeshData& meshData) const;
+    SDL_AppResult uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffers& outBuffers) const;
+    SDL_AppResult createModel(const MeshData& meshData);
 
     SDL_Window* window = NULL;
     SDL_GPUDevice* device = NULL;
     SDL_GPUGraphicsPipeline* pipeline = NULL;
     SDL_GPUTexture* depthTexture = NULL;
-
   };
 } // namespace flb
