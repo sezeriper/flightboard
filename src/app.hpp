@@ -15,6 +15,7 @@ namespace flb
   struct Vertex {
     glm::vec3 position;
     glm::vec3 color;
+    glm::vec3 normal;
   };
 
   using Index = Uint16;
@@ -42,7 +43,8 @@ namespace flb
 
   private:
     struct Uniforms {
-      glm::mat4 modelViewProjection{1.0f};
+      glm::mat4 viewProjection;
+      glm::mat4 model;
     };
 
     struct MeshGPUBuffers {

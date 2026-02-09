@@ -24,7 +24,7 @@ SDL_AppResult App::createPipeline()
     }
   };
 
-  SDL_GPUVertexAttribute vertexAttributes[2] {
+  SDL_GPUVertexAttribute vertexAttributes[3] {
     {
       .location = 0,
       .buffer_slot = 0,
@@ -37,6 +37,12 @@ SDL_AppResult App::createPipeline()
       .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
       .offset = offsetof(Vertex, color),
 
+    },
+    {
+      .location = 2,
+      .buffer_slot = 0,
+      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+      .offset = offsetof(Vertex, normal),
     }
   };
 
@@ -62,7 +68,7 @@ SDL_AppResult App::createPipeline()
       .vertex_buffer_descriptions = vertexBufferDescriptions,
       .num_vertex_buffers = 1,
       .vertex_attributes = vertexAttributes,
-      .num_vertex_attributes = 2,
+      .num_vertex_attributes = 3,
     },
     .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
     .rasterizer_state {
@@ -266,7 +272,7 @@ SDL_AppResult App::init()
   }
 
   window = SDL_CreateWindow("flightboard v0.0.1", 1280, 720,
-    SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE);
   if (window == NULL)
   {
     SDL_Log("CreateWindow failed %s", SDL_GetError());
@@ -284,40 +290,13 @@ SDL_AppResult App::init()
     return SDL_APP_FAILURE;
   }
 
-  const std::vector<Vertex> vertices {{
-    Vertex{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // 0
-    Vertex{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, // 1
-    Vertex{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}}, // 2
-    Vertex{{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}}, // 3
-    Vertex{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 1.0f}}, // 4
-    Vertex{{ 0.5f, -0.5f,  0.5f}, {0.0f, 1.0f, 1.0f}}, // 5
-    Vertex{{ 0.5f,  0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}, // 6
-    Vertex{{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 0.0f}}  // 7
-  }};
-
-  const std::vector<Index> indices {
-    0, 3, 2, 2, 1, 0, // back face
-    4, 5, 6, 6, 7, 4, // front face
-    0, 4, 7, 7, 3, 0, // left face
-    1, 2, 6, 6, 5, 1, // right face
-    3, 7, 6, 6, 2, 3, // top face
-    0, 1, 5, 5, 4, 0  // bottom face
-  };
-
   camera.pos = {0.0f, 0.0f, 3.0f};
 
-  // createModel({
-  //   vertices,
-  //   indices,
-  // }, glm::translate(glm::mat4(1.0f), {-1.0f, 0.0f, 0.0f}));
+  // const auto cubeMesh = loadMesh("content/models/cube/cube.obj");
+  // createModel(cubeMesh, glm::mat4{1.0f});
 
-  // createModel({
-  //   vertices,
-  //   indices,
-  // }, glm::translate(glm::mat4(1.0f), {1.0f, 0.0f, 0.0f}));
-
-  const auto mesh = loadMesh("content/meshes/floatplane.obj");
-  createModel(mesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
+  const auto planeMesh = loadMesh("content/models/floatplane/floatplane.obj");
+  createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 
   return SDL_APP_CONTINUE;
 }
@@ -429,7 +408,10 @@ SDL_AppResult App::draw() const
     SDL_BindGPUIndexBuffer(
       renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    const Uniforms uniforms { camera.getViewProjMat() * transform };
+    const Uniforms uniforms {
+      .viewProjection = camera.getViewProjMat(),
+      .model = transform
+    };
     SDL_PushGPUVertexUniformData(
       commandBuffer, 0, &uniforms, sizeof(uniforms));
     SDL_DrawGPUIndexedPrimitives(renderPass, buffers.numOfIndices, 1, 0, 0, 0);

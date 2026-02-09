@@ -12,6 +12,9 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <map>
+#include <tuple>
+#include <limits>
 
 namespace flb
 {
@@ -36,13 +39,13 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
 {
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
-  const auto vertexShaderSrc = readFile("content/shaders/spinning_cube.vert.hlsl");
+  const auto vertexShaderSrc = readFile("content/shaders/lighting_basic.vert.hlsl");
   if (vertexShaderSrc.empty())
   {
     return SDL_APP_FAILURE;
   }
 
-  const auto fragmentShaderSrc = readFile("content/shaders/color.frag.hlsl");
+  const auto fragmentShaderSrc = readFile("content/shaders/lighting_basic.frag.hlsl");
   if (fragmentShaderSrc.empty())
   {
     return SDL_APP_FAILURE;
@@ -124,6 +127,7 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
   return SDL_APP_CONTINUE;
 }
 
+// TODO: very unoptimized i dont like it
 static MeshData loadMesh(const std::filesystem::path& path)
 {
   tinyobj::ObjReaderConfig reader_config;
@@ -148,26 +152,44 @@ static MeshData loadMesh(const std::filesystem::path& path)
 
   std::vector<Vertex> vertices;
   std::vector<Index> indices;
-
-  vertices.reserve(attrib.vertices.size() / 3);
-
-  for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
-    vertices.emplace_back(Vertex{
-      .position = {
-        attrib.vertices[i + 0],
-        attrib.vertices[i + 1],
-        attrib.vertices[i + 2]
-      },
-      .color = {0.7f, 0.1f, 0.1f}
-    });
-  }
+  std::map<std::tuple<int, int, int>, Index> uniqueVertices;
 
   for (const auto& shape : shapes) {
     for (const auto& index : shape.mesh.indices) {
-      indices.push_back(static_cast<Index>(index.vertex_index));
+      std::tuple<int, int, int> key = {index.vertex_index, index.normal_index, index.texcoord_index};
+
+      if (uniqueVertices.find(key) == uniqueVertices.end()) {
+        if (vertices.size() >= std::numeric_limits<Index>::max()) {
+           SDL_Log("Mesh too large for 16-bit indices!");
+           return { vertices, indices };
+        }
+
+        Vertex vertex{};
+
+        vertex.position.x = attrib.vertices[3 * index.vertex_index + 0];
+        vertex.position.y = attrib.vertices[3 * index.vertex_index + 1];
+        vertex.position.z = attrib.vertices[3 * index.vertex_index + 2];
+
+        vertex.color.r = attrib.colors[3 * index.vertex_index + 0];
+        vertex.color.g = attrib.colors[3 * index.vertex_index + 1];
+        vertex.color.b = attrib.colors[3 * index.vertex_index + 2];
+
+        if (index.normal_index >= 0) {
+          vertex.normal.x = attrib.normals[3 * index.normal_index + 0];
+          vertex.normal.y = attrib.normals[3 * index.normal_index + 1];
+          vertex.normal.z = attrib.normals[3 * index.normal_index + 2];
+        } else {
+             vertex.normal = {0.0f, 0.0f, 0.0f};
+        }
+
+        uniqueVertices[key] = static_cast<Index>(vertices.size());
+        vertices.push_back(vertex);
+      }
+
+      indices.push_back(uniqueVertices[key]);
     }
   }
 
-  return { std::move(vertices), std::move(indices) };
+  return { vertices, indices };
 }
 } // namespace flb
