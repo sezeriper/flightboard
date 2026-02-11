@@ -55,7 +55,10 @@ namespace flb
 
     using Transform = glm::mat4;
 
-    Camera camera;
+    static constexpr float mouseSensitivity = 0.006f;
+    static constexpr float keyboardSensitivity = 4.0f;
+    static constexpr float scrollSensitivity = 0.6f;
+    OrbitalCamera camera;
     entt::registry registry;
 
     SDL_AppResult createPipeline();

@@ -290,7 +290,8 @@ SDL_AppResult App::init()
     return SDL_APP_FAILURE;
   }
 
-  camera.pos = {0.0f, 0.0f, 3.0f};
+  camera.center = {0.0f, 0.0f, 0.0f};
+  camera.distance = 5.0f;
 
   // const auto cubeMesh = loadMesh("content/models/cube/cube.obj");
   // createModel(cubeMesh, glm::mat4{1.0f});
@@ -333,16 +334,48 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
     }
   }
 
+  if (event->type == SDL_EVENT_MOUSE_MOTION && event->motion.state == SDL_BUTTON_LEFT)
+  {
+    const auto dtx = event->motion.xrel;
+    const auto dty = event->motion.yrel;
+    camera.yaw += dtx * mouseSensitivity;
+    camera.pitch -= dty * mouseSensitivity;
+  }
+
+  if (event->type == SDL_EVENT_MOUSE_WHEEL)
+  {
+    camera.distance += event->wheel.y * scrollSensitivity;
+    camera.distance = glm::clamp(camera.distance, 2.0f, 10.0f);
+  }
+
   return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult App::update(float dt)
 {
-  auto view = registry.view<Transform>();
-  for (auto entity: view)
+  // auto view = registry.view<Transform>();
+  // for (auto entity: view)
+  // {
+  //   auto& transform = view.get<Transform>(entity);
+  //   transform = glm::rotate(transform, dt, UP);
+  // }
+
+  const bool* keyStates = SDL_GetKeyboardState(NULL);
+  if (keyStates[SDL_SCANCODE_W])
   {
-    auto& transform = view.get<Transform>(entity);
-    transform = glm::rotate(transform, dt, UP);
+    camera.pitch -= keyboardSensitivity * dt;
+  }
+  if (keyStates[SDL_SCANCODE_A])
+  {
+    camera.yaw -= keyboardSensitivity * dt;
+  }
+  if (keyStates[SDL_SCANCODE_S])
+  {
+    camera.pitch += keyboardSensitivity * dt;
+  }
+  if (keyStates[SDL_SCANCODE_D])
+  {
+    camera.yaw += keyboardSensitivity * dt;
   }
 
   return SDL_APP_CONTINUE;
