@@ -24,8 +24,8 @@ namespace flb
   concept VertexOrIndex = std::is_same_v<T, Vertex> || std::is_same_v<T, Index>;
 
   struct MeshData {
-    const std::vector<Vertex> vertices;
-    const std::vector<Index> indices;
+    std::vector<Vertex> vertices;
+    std::vector<Index> indices;
   };
 
   class App {

@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "utils.hpp"
+#include "obj_loader.hpp"
 
 namespace flb
 {
@@ -296,7 +297,10 @@ SDL_AppResult App::init()
   // const auto cubeMesh = loadMesh("content/models/cube/cube.obj");
   // createModel(cubeMesh, glm::mat4{1.0f});
 
-  const auto planeMesh = loadMesh("content/models/floatplane/floatplane.obj");
+  // const auto planeMesh = loadMesh("content/models/floatplane/floatplane.obj");
+  // createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
+
+  const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
   createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 
   return SDL_APP_CONTINUE;
@@ -377,6 +381,8 @@ SDL_AppResult App::update(float dt)
   {
     camera.yaw += keyboardSensitivity * dt;
   }
+
+  camera.pitch = glm::clamp(camera.pitch, glm::radians(-89.9f), glm::radians(89.9f));
 
   return SDL_APP_CONTINUE;
 }
