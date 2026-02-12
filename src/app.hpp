@@ -16,6 +16,7 @@ namespace flb
     glm::vec3 position;
     glm::vec3 color;
     glm::vec3 normal;
+    glm::vec2 uv;
   };
 
   using Index = Uint16;
