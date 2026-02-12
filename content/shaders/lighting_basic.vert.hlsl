@@ -1,15 +1,17 @@
 struct VertexInput
 {
     float3 Position : TEXCOORD0;
-    float3 Color : TEXCOORD1;
-    float3 Normal : TEXCOORD2;
+    float3 Normal : TEXCOORD1;
+    float3 Color : TEXCOORD2;
+    float2 UV : TEXCOORD3;
 };
 
 struct VertexOutput
 {
     float4 Position : SV_Position;
-    float3 Color : TEXCOORD0;
-    float3 Normal : TEXCOORD1;
+    float3 Normal : TEXCOORD0;
+    float3 Color : TEXCOORD1;
+    float2 UV : TEXCOORD2;
 };
 
 cbuffer UniformBlock : register(b0, space1)
@@ -27,6 +29,7 @@ VertexOutput main(VertexInput input)
 
     output.Color = input.Color;
     output.Normal = normalize(mul((float3x3)ModelMatrix, input.Normal));
+    output.UV = input.UV;
 
     return output;
 }

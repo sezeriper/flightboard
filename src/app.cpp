@@ -25,7 +25,7 @@ SDL_AppResult App::createPipeline()
     }
   };
 
-  SDL_GPUVertexAttribute vertexAttributes[3] {
+  SDL_GPUVertexAttribute vertexAttributes[4] {
     {
       .location = 0,
       .buffer_slot = 0,
@@ -36,14 +36,20 @@ SDL_AppResult App::createPipeline()
       .location = 1,
       .buffer_slot = 0,
       .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-      .offset = offsetof(Vertex, color),
+      .offset = offsetof(Vertex, normal),
 
     },
     {
       .location = 2,
       .buffer_slot = 0,
       .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-      .offset = offsetof(Vertex, normal),
+      .offset = offsetof(Vertex, color),
+    },
+    {
+      .location = 3,
+      .buffer_slot = 0,
+      .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+      .offset = offsetof(Vertex, uv),
     }
   };
 
@@ -69,7 +75,7 @@ SDL_AppResult App::createPipeline()
       .vertex_buffer_descriptions = vertexBufferDescriptions,
       .num_vertex_buffers = 1,
       .vertex_attributes = vertexAttributes,
-      .num_vertex_attributes = 3,
+      .num_vertex_attributes = 4,
     },
     .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
     .rasterizer_state {

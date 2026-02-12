@@ -1,8 +1,9 @@
 struct PixelInput
 {
     float4 Position : SV_Position;
-    float3 Color : TEXCOORD0;
-    float3 Normal : TEXCOORD1;
+    float3 Normal : TEXCOORD0;
+    float3 Color : TEXCOORD1;
+    float2 UV : TEXCOORD2;
 };
 
 float4 main(PixelInput input) : SV_Target0
