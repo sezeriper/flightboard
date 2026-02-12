@@ -294,12 +294,6 @@ SDL_AppResult App::init()
   camera.center = {0.0f, 0.0f, 0.0f};
   camera.distance = 5.0f;
 
-  // const auto cubeMesh = loadMesh("content/models/cube/cube.obj");
-  // createModel(cubeMesh, glm::mat4{1.0f});
-
-  // const auto planeMesh = loadMesh("content/models/floatplane/floatplane.obj");
-  // createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
-
   const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
   createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 

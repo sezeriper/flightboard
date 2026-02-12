@@ -48,7 +48,7 @@ namespace flb
 {
   static MeshData loadOBJ(const std::filesystem::path& path)
   {
-    // 1. Read file into memory (This is the only necessary allocation)
+    // Read file into memory (This is the only necessary allocation)
     const auto content = readFile(path);
 
     // Pointers to traverse the buffer
@@ -59,37 +59,17 @@ namespace flb
     size_t vnCount = 0;
     size_t vtCount = 0;
 
-    // 2. Fast Pre-pass: Count elements using raw pointers
-    // This traverses memory linearly without constructing string objects
-    const char* scan = ptr;
-    while (scan < end) {
-      // Check for line start
-      if (*scan == 'v') {
-        if (scan + 1 < end) {
-          if (scan[1] == ' ') vCount++;
-          else if (scan[1] == 'n') vnCount++;
-          else if (scan[1] == 't') vtCount++;
-        }
-      }
-      scan = nextLine(scan, end);
-    }
-
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> texCoords;
     std::vector<glm::vec3> colors;
-
-    positions.reserve(vCount);
-    colors.reserve(vCount);
-    normals.reserve(vnCount);
-    texCoords.reserve(vtCount);
 
     std::vector<Vertex> vertices;
     std::vector<Index> indices;
 
     std::map<std::tuple<int, int, int>, Index> uniqueVertices;
 
-    // 3. Parse Pass
+    // Parse
     while (ptr < end) {
       // Fast skip of empty lines or comments
       ptr = skipSpace(ptr, end);
