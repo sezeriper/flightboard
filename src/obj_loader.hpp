@@ -7,6 +7,7 @@
 #include <tuple>
 #include <map>
 #include <filesystem>
+#include <algorithm>
 
 
 namespace
@@ -46,6 +47,72 @@ namespace
 
 namespace flb
 {
+  /**
+   * Reads the diffuse texture from the MTL file associated with the OBJ.
+   * This is a very basic implementation that only looks for the first "map_Kd" entry.
+   */
+  static ImageData readDiffuseTextureFromMTL(const std::filesystem::path& path)
+  {
+    const auto content = readFile(path);
+    const char* ptr = content.data();
+    const char* end = content.data() + content.size();
+    while (ptr < end) {
+      ptr = skipSpace(ptr, end);
+      if (ptr >= end) break;
+
+      if (*ptr == '#') {
+        ptr = nextLine(ptr, end);
+        continue;
+      }
+
+      if (std::strncmp(ptr, "map_Kd", 6) == 0 && (ptr + 6 < end && std::isspace(*(ptr + 6)))) {
+        ptr += 6; // Skip "map_Kd"
+        ptr = skipSpace(ptr, end);
+
+        // Extract texture path
+        const char* lineEnd = ptr;
+        while (lineEnd < end && *lineEnd != '\n' && *lineEnd != '\r') lineEnd++;
+
+        std::string texturePathRaw(ptr, lineEnd);
+        std::replace(texturePathRaw.begin(), texturePathRaw.end(), '\\', '/');
+
+        std::filesystem::path fullPath = path.parent_path() / texturePathRaw;
+
+        SDL_Surface* surface = SDL_LoadSurface(fullPath.string().c_str());
+        if (surface == NULL) {
+          SDL_Log("Failed to load texture: %s", fullPath.string().c_str());
+          return { 0, 0, {} };
+        }
+
+        if (surface->format != SDL_PIXELFORMAT_ABGR8888) {
+             SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_ABGR8888);
+             SDL_DestroySurface(surface);
+             if (converted == NULL) {
+                 SDL_Log("Failed to convert surface to ABGR8888");
+                 return { 0, 0, {} };
+             }
+             surface = converted;
+        }
+
+        ImageData data = {
+          static_cast<std::size_t>(surface->w),
+          static_cast<std::size_t>(surface->h),
+          std::vector<std::byte>(reinterpret_cast<std::byte*>(surface->pixels), reinterpret_cast<std::byte*>(surface->pixels) + surface->pitch * surface->h),
+        };
+
+        SDL_DestroySurface(surface);
+        return data;
+      }
+
+      ptr = nextLine(ptr, end);
+    }
+    return { 0, 0, {} };
+  }
+
+  /**
+   * Note: This is a very basic OBJ loader that only supports a subset of the format.
+   * It is designed for simplicity and may not handle all edge cases or features of the OBJ format.
+   */
   static MeshData loadOBJ(const std::filesystem::path& path)
   {
     // Read file into memory (This is the only necessary allocation)
@@ -124,6 +191,7 @@ namespace flb
           glm::vec2 vt;
           ptr = parseFloat(ptr, end, vt.x);
           ptr = parseFloat(ptr, end, vt.y);
+          vt.y = 1.0f - vt.y;
           texCoords.push_back(vt);
         } else {
           // Unknown "vX" format, skip

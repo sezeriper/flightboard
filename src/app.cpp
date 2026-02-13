@@ -108,7 +108,98 @@ SDL_AppResult App::createPipeline()
   SDL_ReleaseGPUShader(device, vertexShader);
   SDL_ReleaseGPUShader(device, fragmentShader);
 
+  SDL_GPUSamplerCreateInfo samplerCreateInfo {
+		.min_filter = SDL_GPU_FILTER_LINEAR,
+		.mag_filter = SDL_GPU_FILTER_LINEAR,
+		.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR,
+		.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+		.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+		.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+	};
+  sampler = SDL_CreateGPUSampler(device, &samplerCreateInfo);
+  if (sampler == NULL)
+  {
+    SDL_Log("CreateGPUSampler failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
   pipeline = p;
+  return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult App::uploadImageToGPUTexture(const ImageData& imageData, ModelTexture& outTexture) const
+{
+  const Uint32 bufferSize = static_cast<Uint32>(imageData.data.size());
+  const Uint32 width = static_cast<Uint32>(imageData.width);
+  const Uint32 height = static_cast<Uint32>(imageData.height);
+
+  SDL_GPUTransferBufferCreateInfo transferBufferCreateInfo {
+    .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+    .size = bufferSize,
+    .props = 0,
+  };
+  SDL_GPUTransferBuffer* transferBuf =
+    SDL_CreateGPUTransferBuffer(device, &transferBufferCreateInfo);
+  if (transferBuf == NULL)
+  {
+    SDL_Log("CreateGPUTransferBuffer failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  std::byte* mappedBuf = reinterpret_cast<std::byte*>(
+    SDL_MapGPUTransferBuffer(device, transferBuf, false));
+  if (mappedBuf == NULL)
+  {
+    SDL_Log("MapGPUTransferBuffer failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  std::copy(imageData.data.begin(), imageData.data.end(), mappedBuf);
+  SDL_UnmapGPUTransferBuffer(device, transferBuf);
+  mappedBuf = NULL;
+
+  SDL_GPUTextureCreateInfo textureCreateInfo {
+    .type = SDL_GPU_TEXTURETYPE_2D,
+    .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+    .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+    .width = width,
+    .height = height,
+    .layer_count_or_depth = 1,
+    .num_levels = 1,
+  };
+  SDL_GPUTexture* texture =
+    SDL_CreateGPUTexture(device, &textureCreateInfo);
+  if (texture == NULL)
+  {
+    SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device);
+  SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmdBuf);
+  SDL_GPUTextureTransferInfo sourceTextureLocation {
+    .transfer_buffer = transferBuf,
+    .offset = 0,
+  };
+  SDL_GPUTextureRegion destTextureRegion {
+    .texture = texture,
+    .w = static_cast<Uint32>(imageData.width),
+    .h = static_cast<Uint32>(imageData.height),
+    .d = 1,
+  };
+
+  SDL_UploadToGPUTexture(copyPass, &sourceTextureLocation, &destTextureRegion, false);
+  SDL_EndGPUCopyPass(copyPass);
+  bool success = SDL_SubmitGPUCommandBuffer(cmdBuf);
+  if (!success)
+  {
+    SDL_Log("SubmitGPUCommandBuffer failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
+  SDL_ReleaseGPUTransferBuffer(device, transferBuf);
+
+  outTexture = texture;
   return SDL_APP_CONTINUE;
 }
 
@@ -196,7 +287,7 @@ SDL_AppResult App::uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffe
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffers& outBuffers) const
+SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, ModelBuffers& outBuffers) const
 {
   SDL_GPUBuffer* vertexBuf;
   SDL_AppResult result = uploadDataToGPUBuffer(meshData.vertices, &vertexBuf);
@@ -215,16 +306,16 @@ SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, MeshGPUBuffe
   }
 
   outBuffers = {
-    .vertexBuffer = vertexBuf,
-    .indexBuffer = indexBuf,
+    .vertex = vertexBuf,
+    .index = indexBuf,
     .numOfIndices = static_cast<Uint32>(meshData.indices.size()),
   };
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::createModel(const MeshData& meshData, const Transform& transform)
+SDL_AppResult App::createModel(const MeshData& meshData, const ImageData& imageData, const Transform& transform)
 {
-  MeshGPUBuffers buffers;
+  ModelBuffers buffers;
   SDL_AppResult result = uploadMeshToGPUBuffers(meshData, buffers);
   if (result == SDL_APP_FAILURE)
   {
@@ -232,9 +323,18 @@ SDL_AppResult App::createModel(const MeshData& meshData, const Transform& transf
     return SDL_APP_FAILURE;
   }
 
+  ModelTexture texture;
+  result = uploadImageToGPUTexture(imageData, texture);
+  if (result == SDL_APP_FAILURE)
+  {
+    SDL_Log("Failed to upload image data to gpu");
+    return SDL_APP_FAILURE;
+  }
+
   const auto entity = registry.create();
   registry.emplace<Transform>(entity, transform);
-  registry.emplace<MeshGPUBuffers>(entity, buffers);
+  registry.emplace<ModelBuffers>(entity, buffers);
+  registry.emplace<ModelTexture>(entity, texture);
   return SDL_APP_CONTINUE;
 }
 
@@ -301,13 +401,15 @@ SDL_AppResult App::init()
   camera.distance = 5.0f;
 
   const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
-  createModel(planeMesh, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
+  const auto planeTexture = readDiffuseTextureFromMTL("content/models/floatplane/floatplane.mtl");
+  createModel(planeMesh, planeTexture, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 
   return SDL_APP_CONTINUE;
 }
 
 void App::cleanup()
 {
+  SDL_ReleaseGPUSampler(device, sampler);
   SDL_ReleaseGPUTexture(device, depthTexture);
   SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
   SDL_ReleaseWindowFromGPUDevice(device, window);
@@ -430,22 +532,29 @@ SDL_AppResult App::draw() const
     SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
   SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
-  auto view = registry.view<MeshGPUBuffers, Transform>();
-  for (const auto [entity, buffers, transform]: view.each())
+  auto view = registry.view<ModelBuffers, ModelTexture, Transform>();
+  for (const auto [entity, buffers, texture, transform]: view.each())
   {
     SDL_GPUBufferBinding vertexBufferBinding {
-      .buffer = buffers.vertexBuffer,
+      .buffer = buffers.vertex,
       .offset = 0,
     };
     SDL_BindGPUVertexBuffers(
       renderPass, 0, &vertexBufferBinding, 1);
 
     SDL_GPUBufferBinding indexBufferBinding {
-      .buffer = buffers.indexBuffer,
+      .buffer = buffers.index,
       .offset = 0,
     };
     SDL_BindGPUIndexBuffer(
       renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
+    SDL_GPUTextureSamplerBinding samplerBinding {
+      .texture = texture,
+      .sampler = sampler,
+    };
+
+    SDL_BindGPUFragmentSamplers(renderPass, 0, &samplerBinding, 1);
 
     const Uniforms uniforms {
       .viewProjection = camera.getViewProjMat(),
