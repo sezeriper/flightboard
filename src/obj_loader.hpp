@@ -1,6 +1,6 @@
 #pragma once
-#include "app.hpp"
 #include "utils.hpp"
+#include "device.hpp"
 
 #include <charconv>
 #include <vector>
@@ -85,13 +85,13 @@ namespace flb
         }
 
         if (surface->format != SDL_PIXELFORMAT_ABGR8888) {
-             SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_ABGR8888);
-             SDL_DestroySurface(surface);
-             if (converted == NULL) {
-                 SDL_Log("Failed to convert surface to ABGR8888");
-                 return { 0, 0, {} };
-             }
-             surface = converted;
+          SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_ABGR8888);
+          SDL_DestroySurface(surface);
+          if (converted == NULL) {
+            SDL_Log("Failed to convert surface to ABGR8888");
+            return { 0, 0, {} };
+          }
+          surface = converted;
         }
 
         Texture texture = {

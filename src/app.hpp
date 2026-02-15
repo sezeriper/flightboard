@@ -2,13 +2,13 @@
 
 #include "camera.hpp"
 #include "window.hpp"
-#include "gpu.hpp"
+#include "device.hpp"
+#include "time.hpp"
 
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include <chrono>
 
 namespace flb
 {
@@ -21,7 +21,7 @@ namespace flb
     SDL_AppResult update(float dt);
     SDL_AppResult draw() const;
 
-    std::chrono::steady_clock::time_point lastFrameTime{};
+    Time::TimePoint lastFrame{};
 
   private:
 
@@ -34,7 +34,6 @@ namespace flb
     SDL_AppResult createPipeline();
     SDL_AppResult createDepthTexture(Uint32 width, Uint32 height);
 
-    SDL_AppResult uploadImageToGPUTexture(const Texture& texture, GPUTexture& outTexture) const;
     SDL_AppResult createModel(const Mesh& mesh, const Texture& texture, const Transform& transform);
 
     Device device;

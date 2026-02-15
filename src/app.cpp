@@ -131,11 +131,14 @@ SDL_AppResult App::createPipeline()
 SDL_AppResult App::createModel(const Mesh& mesh, const Texture& texture, const Transform& transform)
 {
   GPUMesh gpumesh = device.createGPUMesh(mesh);
+  if (gpumesh.numOfIndices == 0)
+  {
+    return SDL_APP_FAILURE;
+  }
 
   GPUTexture gputexture = device.createGPUTexture(texture);
   if (gputexture == NULL)
   {
-    SDL_Log("Failed to upload image data to gpu");
     return SDL_APP_FAILURE;
   }
 
@@ -175,26 +178,29 @@ SDL_AppResult App::createDepthTexture(Uint32 width, Uint32 height)
 
 SDL_AppResult App::init()
 {
-  if (device.init() != SDL_APP_CONTINUE)
   {
-    return SDL_APP_FAILURE;
-  }
+    Timer timer("Initialization");
+    if (device.init() != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
 
-  if (window.init() != SDL_APP_CONTINUE)
-  {
-    return SDL_APP_FAILURE;
-  }
+    if (window.init() != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
 
-  if (!SDL_ClaimWindowForGPUDevice(device.getDevice(), window.getWindow()))
-  {
-    SDL_Log("ClaimWindowForGPUDevice failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
+    if (!SDL_ClaimWindowForGPUDevice(device.getDevice(), window.getWindow()))
+    {
+      SDL_Log("ClaimWindowForGPUDevice failed: %s", SDL_GetError());
+      return SDL_APP_FAILURE;
+    }
 
-  SDL_AppResult result = createPipeline();
-  if (result != SDL_APP_CONTINUE)
-  {
-    return SDL_APP_FAILURE;
+    SDL_AppResult result = createPipeline();
+    if (result != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
   }
 
   camera.center = {0.0f, 0.0f, 0.0f};

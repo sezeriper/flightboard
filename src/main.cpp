@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "time.hpp"
 
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
@@ -6,8 +7,6 @@
 
 #include <SDL3_shadercross/SDL_shadercross.h>
 
-#include <chrono>
-using namespace std::chrono_literals;
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -20,7 +19,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
   *appstate = app;
 
-  app->lastFrameTime = std::chrono::steady_clock::now();
+  app->lastFrame = flb::Time::now();
   return SDL_APP_CONTINUE;
 }
 
@@ -39,11 +38,11 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 {
   auto* app = static_cast<flb::App*>(appstate);
 
-  const auto now = std::chrono::steady_clock::now();
-  const auto dt = std::chrono::duration<float>(now - app->lastFrameTime).count();
-  app->lastFrameTime = now;
+  const flb::Time::TimePoint now = flb::Time::now();
+  const flb::Time::Duration dt = now - app->lastFrame;
+  app->lastFrame = now;
 
-  SDL_AppResult result = app->update(dt);
+  SDL_AppResult result = app->update(flb::Time::toSeconds(dt));
   if (result != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
