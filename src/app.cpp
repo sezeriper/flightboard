@@ -9,7 +9,7 @@ SDL_AppResult App::createPipeline()
   // create shaders
   SDL_GPUShader* vertexShader = NULL;
   SDL_GPUShader* fragmentShader = NULL;
-  SDL_AppResult shaderResult = createShaders(device, &vertexShader, &fragmentShader);
+  SDL_AppResult shaderResult = createShaders(device.getDevice(), &vertexShader, &fragmentShader);
   if (shaderResult != SDL_APP_CONTINUE)
   {
     return shaderResult;
@@ -55,7 +55,7 @@ SDL_AppResult App::createPipeline()
 
   SDL_GPUColorTargetDescription colorTargetDescriptions[1] {
     {
-      .format = SDL_GetGPUSwapchainTextureFormat(device, window),
+      .format = SDL_GetGPUSwapchainTextureFormat(device.getDevice(), window.getWindow()),
       .blend_state {
         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
@@ -97,7 +97,7 @@ SDL_AppResult App::createPipeline()
   };
 
   SDL_GPUGraphicsPipeline* p = SDL_CreateGPUGraphicsPipeline(
-    device, &pipelineCreateInfo);
+    device.getDevice(), &pipelineCreateInfo);
   if (p == NULL)
   {
     SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
@@ -105,8 +105,8 @@ SDL_AppResult App::createPipeline()
   }
 
   // clean up shaders after pipeline creation
-  SDL_ReleaseGPUShader(device, vertexShader);
-  SDL_ReleaseGPUShader(device, fragmentShader);
+  SDL_ReleaseGPUShader(device.getDevice(), vertexShader);
+  SDL_ReleaseGPUShader(device.getDevice(), fragmentShader);
 
   SDL_GPUSamplerCreateInfo samplerCreateInfo {
 		.min_filter = SDL_GPU_FILTER_LINEAR,
@@ -116,7 +116,7 @@ SDL_AppResult App::createPipeline()
 		.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 		.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 	};
-  sampler = SDL_CreateGPUSampler(device, &samplerCreateInfo);
+  sampler = SDL_CreateGPUSampler(device.getDevice(), &samplerCreateInfo);
   if (sampler == NULL)
   {
     SDL_Log("CreateGPUSampler failed: %s", SDL_GetError());
@@ -127,205 +127,13 @@ SDL_AppResult App::createPipeline()
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::uploadImageToGPUTexture(const ImageData& imageData, ModelTexture& outTexture) const
+
+SDL_AppResult App::createModel(const Mesh& mesh, const Texture& texture, const Transform& transform)
 {
-  const Uint32 bufferSize = static_cast<Uint32>(imageData.data.size());
-  const Uint32 width = static_cast<Uint32>(imageData.width);
-  const Uint32 height = static_cast<Uint32>(imageData.height);
+  GPUMesh gpumesh = device.createGPUMesh(mesh);
 
-  SDL_GPUTransferBufferCreateInfo transferBufferCreateInfo {
-    .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-    .size = bufferSize,
-    .props = 0,
-  };
-  SDL_GPUTransferBuffer* transferBuf =
-    SDL_CreateGPUTransferBuffer(device, &transferBufferCreateInfo);
-  if (transferBuf == NULL)
-  {
-    SDL_Log("CreateGPUTransferBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  std::byte* mappedBuf = reinterpret_cast<std::byte*>(
-    SDL_MapGPUTransferBuffer(device, transferBuf, false));
-  if (mappedBuf == NULL)
-  {
-    SDL_Log("MapGPUTransferBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  std::copy(imageData.data.begin(), imageData.data.end(), mappedBuf);
-  SDL_UnmapGPUTransferBuffer(device, transferBuf);
-  mappedBuf = NULL;
-
-  SDL_GPUTextureCreateInfo textureCreateInfo {
-    .type = SDL_GPU_TEXTURETYPE_2D,
-    .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-    .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
-    .width = width,
-    .height = height,
-    .layer_count_or_depth = 1,
-    .num_levels = 1,
-  };
-  SDL_GPUTexture* texture =
-    SDL_CreateGPUTexture(device, &textureCreateInfo);
-  if (texture == NULL)
-  {
-    SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device);
-  SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmdBuf);
-  SDL_GPUTextureTransferInfo sourceTextureLocation {
-    .transfer_buffer = transferBuf,
-    .offset = 0,
-  };
-  SDL_GPUTextureRegion destTextureRegion {
-    .texture = texture,
-    .w = static_cast<Uint32>(imageData.width),
-    .h = static_cast<Uint32>(imageData.height),
-    .d = 1,
-  };
-
-  SDL_UploadToGPUTexture(copyPass, &sourceTextureLocation, &destTextureRegion, false);
-  SDL_EndGPUCopyPass(copyPass);
-  bool success = SDL_SubmitGPUCommandBuffer(cmdBuf);
-  if (!success)
-  {
-    SDL_Log("SubmitGPUCommandBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_ReleaseGPUTransferBuffer(device, transferBuf);
-
-  outTexture = texture;
-  return SDL_APP_CONTINUE;
-}
-
-template<typename R>
-requires std::ranges::contiguous_range<R> &&
-         std::ranges::sized_range<R> &&
-         VertexOrIndex<std::ranges::range_value_t<R>>
-SDL_AppResult App::uploadDataToGPUBuffer(const R& data, SDL_GPUBuffer** outBuffer) const
-{
-  using T = std::ranges::range_value_t<R>;
-  const Uint32 bufferSize = static_cast<Uint32>(std::ranges::size(data) * sizeof(T));
-
-  SDL_GPUTransferBufferCreateInfo transferBufferCreateInfo {
-    .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-    .size = bufferSize,
-    .props = 0,
-  };
-  SDL_GPUTransferBuffer* transferBuf =
-    SDL_CreateGPUTransferBuffer(device, &transferBufferCreateInfo);
-  if (transferBuf == NULL)
-  {
-    SDL_Log("CreateGPUTransferBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  T* mappedBuf = reinterpret_cast<T*>(
-    SDL_MapGPUTransferBuffer(device, transferBuf, false));
-  if (mappedBuf == NULL)
-  {
-    SDL_Log("MapGPUTransferBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  std::ranges::copy(data, mappedBuf);
-  SDL_UnmapGPUTransferBuffer(device, transferBuf);
-  mappedBuf = NULL;
-
-  // then create vertex buffer and copy data from transfer buffer to it
-  SDL_GPUBufferCreateInfo bufferCreateInfo {
-    .size = bufferSize,
-    .props = 0,
-  };
-
-  if constexpr (std::same_as<T, Vertex>)
-  {
-    bufferCreateInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-  }
-  else if constexpr (std::same_as<T, Index>)
-  {
-    bufferCreateInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX;
-  }
-
-  SDL_GPUBuffer* buf =
-    SDL_CreateGPUBuffer(device, &bufferCreateInfo);
-  if (buf == NULL)
-  {
-    SDL_Log("CreateGPUBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device);
-  SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmdBuf);
-  SDL_GPUTransferBufferLocation sourceBufferLocation {
-    .transfer_buffer = transferBuf,
-    .offset = 0,
-  };
-  SDL_GPUBufferRegion destBufferRegion {
-    .buffer = buf,
-    .offset = 0,
-    .size = bufferSize,
-  };
-
-  SDL_UploadToGPUBuffer(copyPass, &sourceBufferLocation, &destBufferRegion, false);
-  SDL_EndGPUCopyPass(copyPass);
-  bool success = SDL_SubmitGPUCommandBuffer(cmdBuf);
-  if (!success)
-  {
-    SDL_Log("SubmitGPUCommandBuffer failed: %s", SDL_GetError());
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_ReleaseGPUTransferBuffer(device, transferBuf);
-
-  *outBuffer = buf;
-  return SDL_APP_CONTINUE;
-}
-
-SDL_AppResult App::uploadMeshToGPUBuffers(const MeshData& meshData, ModelBuffers& outBuffers) const
-{
-  SDL_GPUBuffer* vertexBuf;
-  SDL_AppResult result = uploadDataToGPUBuffer(meshData.vertices, &vertexBuf);
-  if (result == SDL_APP_FAILURE)
-  {
-    SDL_Log("Failed to upload vertex buffer");
-    return SDL_APP_FAILURE;
-  }
-
-  SDL_GPUBuffer* indexBuf;
-  result = uploadDataToGPUBuffer(meshData.indices, &indexBuf);
-  if (result == SDL_APP_FAILURE)
-  {
-    SDL_Log("Failed to upload index buffer");
-    return SDL_APP_FAILURE;
-  }
-
-  outBuffers = {
-    .vertex = vertexBuf,
-    .index = indexBuf,
-    .numOfIndices = static_cast<Uint32>(meshData.indices.size()),
-  };
-  return SDL_APP_CONTINUE;
-}
-
-SDL_AppResult App::createModel(const MeshData& meshData, const ImageData& imageData, const Transform& transform)
-{
-  ModelBuffers buffers;
-  SDL_AppResult result = uploadMeshToGPUBuffers(meshData, buffers);
-  if (result == SDL_APP_FAILURE)
-  {
-    SDL_Log("Failed to upload mesh data to gpu");
-    return SDL_APP_FAILURE;
-  }
-
-  ModelTexture texture;
-  result = uploadImageToGPUTexture(imageData, texture);
-  if (result == SDL_APP_FAILURE)
+  GPUTexture gputexture = device.createGPUTexture(texture);
+  if (gputexture == NULL)
   {
     SDL_Log("Failed to upload image data to gpu");
     return SDL_APP_FAILURE;
@@ -333,8 +141,8 @@ SDL_AppResult App::createModel(const MeshData& meshData, const ImageData& imageD
 
   const auto entity = registry.create();
   registry.emplace<Transform>(entity, transform);
-  registry.emplace<ModelBuffers>(entity, buffers);
-  registry.emplace<ModelTexture>(entity, texture);
+  registry.emplace<GPUMesh>(entity, gpumesh);
+  registry.emplace<GPUTexture>(entity, gputexture);
   return SDL_APP_CONTINUE;
 }
 
@@ -342,7 +150,7 @@ SDL_AppResult App::createDepthTexture(Uint32 width, Uint32 height)
 {
   if (depthTexture != NULL)
   {
-    SDL_ReleaseGPUTexture(device, depthTexture);
+    SDL_ReleaseGPUTexture(device.getDevice(), depthTexture);
     depthTexture = NULL;
   }
 
@@ -356,7 +164,7 @@ SDL_AppResult App::createDepthTexture(Uint32 width, Uint32 height)
     .num_levels = 1,
   };
   depthTexture =
-    SDL_CreateGPUTexture(device, &depthTextCreateInfo);
+    SDL_CreateGPUTexture(device.getDevice(), &depthTextCreateInfo);
   if (depthTexture == NULL)
   {
     SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
@@ -367,28 +175,20 @@ SDL_AppResult App::createDepthTexture(Uint32 width, Uint32 height)
 
 SDL_AppResult App::init()
 {
-  SDL_InitSubSystem(SDL_INIT_VIDEO);
-
-  device = SDL_CreateGPUDevice(
-    SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
-    true, NULL);
-  if (device == NULL)
+  if (device.init() != SDL_APP_CONTINUE)
   {
-    SDL_Log("CreateGPUDevice failed: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
 
-  window = SDL_CreateWindow("flightboard v0.0.1", 1280, 720,
-    SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE);
-  if (window == NULL)
+  if (window.init() != SDL_APP_CONTINUE)
   {
-    SDL_Log("CreateWindow failed %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
 
-  if (!SDL_ClaimWindowForGPUDevice(device, window))
+  if (!SDL_ClaimWindowForGPUDevice(device.getDevice(), window.getWindow()))
   {
     SDL_Log("ClaimWindowForGPUDevice failed: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
   }
 
   SDL_AppResult result = createPipeline();
@@ -409,12 +209,12 @@ SDL_AppResult App::init()
 
 void App::cleanup()
 {
-  SDL_ReleaseGPUSampler(device, sampler);
-  SDL_ReleaseGPUTexture(device, depthTexture);
-  SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-  SDL_ReleaseWindowFromGPUDevice(device, window);
-  SDL_DestroyWindow(window);
-  SDL_DestroyGPUDevice(device);
+  SDL_ReleaseGPUSampler(device.getDevice(), sampler);
+  SDL_ReleaseGPUTexture(device.getDevice(), depthTexture);
+  SDL_ReleaseGPUGraphicsPipeline(device.getDevice(), pipeline);
+  SDL_ReleaseWindowFromGPUDevice(device.getDevice(), window.getWindow());
+  window.cleanup();
+  device.cleanup();
 }
 
 SDL_AppResult App::handleEvent(SDL_Event* event)
@@ -491,7 +291,7 @@ SDL_AppResult App::update(float dt)
 
 SDL_AppResult App::draw() const
 {
-  SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+  SDL_GPUCommandBuffer* commandBuffer = SDL_AcquireGPUCommandBuffer(device.getDevice());
   if (commandBuffer == NULL)
   {
     SDL_Log("AcquireGPUCommandBuffer failed: %s", SDL_GetError());
@@ -500,7 +300,7 @@ SDL_AppResult App::draw() const
 
   SDL_GPUTexture* swapchainTexture = NULL;
   if (!SDL_WaitAndAcquireGPUSwapchainTexture(
-    commandBuffer, window, &swapchainTexture, NULL, NULL))
+    commandBuffer, window.getWindow(), &swapchainTexture, NULL, NULL))
   {
     SDL_Log("WaitAndAcquireGPUSwapchainTexture failed: %s", SDL_GetError());
     return SDL_APP_FAILURE;
@@ -532,18 +332,18 @@ SDL_AppResult App::draw() const
     SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
   SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
-  auto view = registry.view<ModelBuffers, ModelTexture, Transform>();
-  for (const auto [entity, buffers, texture, transform]: view.each())
+  auto view = registry.view<GPUMesh, GPUTexture, Transform>();
+  for (const auto [entity, mesh, texture, transform]: view.each())
   {
     SDL_GPUBufferBinding vertexBufferBinding {
-      .buffer = buffers.vertex,
+      .buffer = mesh.vertex,
       .offset = 0,
     };
     SDL_BindGPUVertexBuffers(
       renderPass, 0, &vertexBufferBinding, 1);
 
     SDL_GPUBufferBinding indexBufferBinding {
-      .buffer = buffers.index,
+      .buffer = mesh.index,
       .offset = 0,
     };
     SDL_BindGPUIndexBuffer(
@@ -562,7 +362,7 @@ SDL_AppResult App::draw() const
     };
     SDL_PushGPUVertexUniformData(
       commandBuffer, 0, &uniforms, sizeof(uniforms));
-    SDL_DrawGPUIndexedPrimitives(renderPass, buffers.numOfIndices, 1, 0, 0, 0);
+    SDL_DrawGPUIndexedPrimitives(renderPass, mesh.numOfIndices, 1, 0, 0, 0);
   }
 
   SDL_EndGPURenderPass(renderPass);

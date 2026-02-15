@@ -18,6 +18,7 @@ set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # This assumes the SDL source is available in external/SDL
+set(SDL_DYNAMIC_API OFF)
 add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
 # Add SDL_shadercross

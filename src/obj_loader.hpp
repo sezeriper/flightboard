@@ -51,7 +51,7 @@ namespace flb
    * Reads the diffuse texture from the MTL file associated with the OBJ.
    * This is a very basic implementation that only looks for the first "map_Kd" entry.
    */
-  static ImageData readDiffuseTextureFromMTL(const std::filesystem::path& path)
+  static Texture readDiffuseTextureFromMTL(const std::filesystem::path& path)
   {
     const auto content = readFile(path);
     const char* ptr = content.data();
@@ -94,14 +94,14 @@ namespace flb
              surface = converted;
         }
 
-        ImageData data = {
+        Texture texture = {
           static_cast<std::size_t>(surface->w),
           static_cast<std::size_t>(surface->h),
           std::vector<std::byte>(reinterpret_cast<std::byte*>(surface->pixels), reinterpret_cast<std::byte*>(surface->pixels) + surface->pitch * surface->h),
         };
 
         SDL_DestroySurface(surface);
-        return data;
+        return texture;
       }
 
       ptr = nextLine(ptr, end);
@@ -113,7 +113,7 @@ namespace flb
    * Note: This is a very basic OBJ loader that only supports a subset of the format.
    * It is designed for simplicity and may not handle all edge cases or features of the OBJ format.
    */
-  static MeshData loadOBJ(const std::filesystem::path& path)
+  static Mesh loadOBJ(const std::filesystem::path& path)
   {
     // Read file into memory (This is the only necessary allocation)
     const auto content = readFile(path);
