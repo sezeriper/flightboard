@@ -201,14 +201,14 @@ SDL_AppResult App::init()
     {
       return SDL_APP_FAILURE;
     }
+
+    camera.center = {0.0f, 0.0f, 0.0f};
+    camera.distance = 5.0f;
+
+    const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
+    const auto planeTexture = readDiffuseTextureFromMTL("content/models/floatplane/floatplane.mtl");
+    createModel(planeMesh, planeTexture, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
   }
-
-  camera.center = {0.0f, 0.0f, 0.0f};
-  camera.distance = 5.0f;
-
-  const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
-  const auto planeTexture = readDiffuseTextureFromMTL("content/models/floatplane/floatplane.mtl");
-  createModel(planeMesh, planeTexture, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
 
   return SDL_APP_CONTINUE;
 }
@@ -279,7 +279,7 @@ SDL_AppResult App::update(float dt)
   }
   if (keyStates[SDL_SCANCODE_A])
   {
-    camera.yaw -= keyboardSensitivity * dt;
+    camera.yaw += keyboardSensitivity * dt;
   }
   if (keyStates[SDL_SCANCODE_S])
   {
@@ -287,7 +287,7 @@ SDL_AppResult App::update(float dt)
   }
   if (keyStates[SDL_SCANCODE_D])
   {
-    camera.yaw += keyboardSensitivity * dt;
+    camera.yaw -= keyboardSensitivity * dt;
   }
 
   camera.pitch = glm::clamp(camera.pitch, glm::radians(-89.9f), glm::radians(89.9f));

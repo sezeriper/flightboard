@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <algorithm>
 
+#include <png.h>
+#include <zlib.h>
 
 namespace
 {
@@ -48,6 +50,29 @@ namespace
 namespace flb
 {
   /**
+   * Reads png files into Texture struct using libpng.
+   */
+  static Texture loadPNG(const std::filesystem::path& path)
+  {
+    png_image image{};
+    image.version = PNG_IMAGE_VERSION;
+    if (png_image_begin_read_from_file(&image, path.string().c_str()) == 0) {
+      SDL_Log("Failed to read PNG image: %s", path.string().c_str());
+      return { 0, 0, {} };
+    }
+
+    image.format = PNG_FORMAT_RGBA;
+    std::unique_ptr<std::byte[]> buffer = std::make_unique<std::byte[]>(PNG_IMAGE_SIZE(image));
+
+    if (png_image_finish_read(&image, NULL, buffer.get(), 0, NULL) == 0) {
+      SDL_Log("Failed to finish reading PNG image: %s", path.string().c_str());
+      return { 0, 0, {} };
+    }
+
+    return { image.width, image.height, std::move(buffer) };
+  }
+
+  /**
    * Reads the diffuse texture from the MTL file associated with the OBJ.
    * This is a very basic implementation that only looks for the first "map_Kd" entry.
    */
@@ -78,30 +103,7 @@ namespace flb
 
         std::filesystem::path fullPath = path.parent_path() / texturePathRaw;
 
-        SDL_Surface* surface = SDL_LoadSurface(fullPath.string().c_str());
-        if (surface == NULL) {
-          SDL_Log("Failed to load texture: %s", fullPath.string().c_str());
-          return { 0, 0, {} };
-        }
-
-        if (surface->format != SDL_PIXELFORMAT_ABGR8888) {
-          SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_ABGR8888);
-          SDL_DestroySurface(surface);
-          if (converted == NULL) {
-            SDL_Log("Failed to convert surface to ABGR8888");
-            return { 0, 0, {} };
-          }
-          surface = converted;
-        }
-
-        Texture texture = {
-          static_cast<std::size_t>(surface->w),
-          static_cast<std::size_t>(surface->h),
-          std::vector<std::byte>(reinterpret_cast<std::byte*>(surface->pixels), reinterpret_cast<std::byte*>(surface->pixels) + surface->pitch * surface->h),
-        };
-
-        SDL_DestroySurface(surface);
-        return texture;
+        return loadPNG(fullPath);
       }
 
       ptr = nextLine(ptr, end);

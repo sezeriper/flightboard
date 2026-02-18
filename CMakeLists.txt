@@ -19,6 +19,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # This assumes the SDL source is available in external/SDL
 set(SDL_DYNAMIC_API OFF)
+set(SDL_X11_XTEST OFF)
 add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
 # Add SDL_shadercross
@@ -43,10 +44,6 @@ add_library(imgui
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 target_link_libraries(imgui PRIVATE SDL3::SDL3)
 
-
-# set(FASTGLTF_COMPILE_AS_CPP20 ON)
-# add_subdirectory(external/fastgltf)
-
 set(ENTT_NO_MIXIN ON)
 # disable asserts and exceptions if Release build
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -55,7 +52,19 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 add_subdirectory(external/entt)
 
+add_subdirectory(external/zlib)
+include_directories(
+    "${CMAKE_CURRENT_BINARY_DIR}/external/zlib"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/zlib"
+)
+set(ZLIB_INCLUDE_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/external/zlib"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/zlib"
+)
+set(ZLIB_LIBRARY zlibstatic)
+add_subdirectory(external/libpng)
+
 # Create your game executable target as usual
 add_executable(flightboard src/main.cpp src/app.cpp)
-target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross EnTT)
+target_link_libraries(flightboard PRIVATE glm imgui SDL3_shadercross::SDL3_shadercross EnTT png_static)
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)

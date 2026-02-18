@@ -8,6 +8,7 @@
 #include <ranges>
 #include <type_traits>
 #include <algorithm>
+#include <memory>
 
 namespace flb
 {
@@ -31,7 +32,7 @@ struct Mesh {
 struct Texture {
   std::size_t width;
   std::size_t height;
-  std::vector<std::byte> data;
+  std::unique_ptr<std::byte[]> data;
 };
 
 struct GPUMesh {
@@ -107,11 +108,12 @@ public:
 
   GPUTexture createGPUTexture(const Texture& texture) const
   {
-    const Uint32 bufferSize = static_cast<Uint32>(texture.data.size());
     const Uint32 width = static_cast<Uint32>(texture.width);
     const Uint32 height = static_cast<Uint32>(texture.height);
+    const Uint32 bufferSize = width * height * 4; // Assuming RGBA8 format
 
-    SDL_GPUTransferBuffer* transferBuf = createTransferBuffer(texture.data);
+    SDL_GPUTransferBuffer* transferBuf = createTransferBuffer(
+      std::span<const std::byte>(texture.data.get(), bufferSize));
     if (transferBuf == NULL) {
       return NULL;
     }
