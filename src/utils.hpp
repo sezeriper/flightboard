@@ -1,5 +1,12 @@
 #pragma once
 
+#include "device.hpp"
+
+#include <turbojpeg.h>
+
+#include <png.h>
+#include <zlib.h>
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 
@@ -11,19 +18,102 @@
 
 namespace flb
 {
-static std::string readFile(std::filesystem::path path)
-{
-  std::ifstream stream(path, std::ios::in | std::ios::binary);
-  if (!stream.is_open()) {
+static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
+  {
+  std::ifstream file(path, std::ios::binary | std::ios::ate | std::ios::in);
+  if (!file.is_open()) {
     SDL_Log("Can't open file %s", path.c_str());
     return {};
   }
 
-  const auto size = std::filesystem::file_size(path);
+  std::streamsize size = file.tellg();
+  file.seekg(0, std::ios::beg);
+
+  std::vector<std::byte> buffer(size);
+  if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+    SDL_Log("Failed to read file %s", path.c_str());
+    return {};
+  }
+
+  return buffer;
+}
+
+/**
+ * Read jpg files into Texture struct using turboJPEG.
+ */
+static Texture loadJPG(const std::filesystem::path& path)
+{
+  auto fileBuf = loadFileBinary(path);
+
+  tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
+  if (handle == NULL) {
+    SDL_Log("tj3Init failed: %s", tj3GetErrorStr(handle));
+    return { 0, 0, nullptr };
+  }
+
+  if (tj3DecompressHeader(handle, reinterpret_cast<unsigned char*>(fileBuf.data()), fileBuf.size()) != 0) {
+    SDL_Log("tj3DecompressHeader failed: %s", tj3GetErrorStr(handle));
+    tj3Destroy(handle);
+    return { 0, 0, nullptr };
+  }
+
+  int width = tj3Get(handle, TJPARAM_JPEGWIDTH);
+  int height = tj3Get(handle, TJPARAM_JPEGHEIGHT);
+
+  std::unique_ptr<std::byte[]> outBuf = std::make_unique_for_overwrite<std::byte[]>(width * height * 4);
+
+  auto result = tj3Decompress8(handle, reinterpret_cast<unsigned char*>(fileBuf.data()), fileBuf.size(), reinterpret_cast<unsigned char*>(outBuf.get()), 0, TJPF_RGBA);
+  if (result != 0) {
+    SDL_Log("tj3Decompress8 failed: %s", tj3GetErrorStr(handle));
+    tj3Destroy(handle);
+    return { 0, 0, nullptr };
+  }
+  tj3Destroy(handle);
+
+  return { static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), std::move(outBuf) };
+}
+
+/**
+  * Reads png files into Texture struct using libpng.
+  */
+static Texture loadPNG(const std::filesystem::path& path)
+{
+  png_image image{};
+  image.version = PNG_IMAGE_VERSION;
+  if (png_image_begin_read_from_file(&image, path.string().c_str()) == 0) {
+    SDL_Log("png_image_begin_read_from_file failed on file %s: %s", path.string().c_str(), image.message);
+    return { 0, 0, nullptr };
+  }
+
+  image.format = PNG_FORMAT_RGBA;
+  std::unique_ptr<std::byte[]> buffer = std::make_unique_for_overwrite<std::byte[]>(PNG_IMAGE_SIZE(image));
+
+  if (png_image_finish_read(&image, NULL, buffer.get(), 0, NULL) == 0) {
+    SDL_Log("png_image_finish_read failed: %s", image.message);
+    png_image_free(&image);
+    return { 0, 0, nullptr };
+  }
+
+  return { image.width, image.height, std::move(buffer) };
+}
+
+static std::string loadFileText(const std::filesystem::path& path)
+{
+  std::ifstream file(path, std::ios::binary | std::ios::ate | std::ios::in);
+  if (!file.is_open()) {
+    SDL_Log("Can't open file %s", path.c_str());
+    return {};
+  }
+
+  std::streamsize size = file.tellg();
+  file.seekg(0, std::ios::beg);
+
   std::string result;
   result.resize(size);
-
-  stream.read(result.data(), size);
+  if (!file.read(result.data(), size)) {
+    SDL_Log("Failed to read file %s", path.c_str());
+    return {};
+  }
 
   return result;
 }
@@ -32,13 +122,13 @@ static SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertex
 {
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
-  const auto vertexShaderSrc = readFile("content/shaders/lighting_basic.vert.hlsl");
+  const auto vertexShaderSrc = loadFileText("content/shaders/lighting_basic.vert.hlsl");
   if (vertexShaderSrc.empty())
   {
     return SDL_APP_FAILURE;
   }
 
-  const auto fragmentShaderSrc = readFile("content/shaders/lighting_basic.frag.hlsl");
+  const auto fragmentShaderSrc = loadFileText("content/shaders/lighting_basic.frag.hlsl");
   if (fragmentShaderSrc.empty())
   {
     return SDL_APP_FAILURE;

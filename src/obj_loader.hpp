@@ -9,9 +9,6 @@
 #include <filesystem>
 #include <algorithm>
 
-#include <png.h>
-#include <zlib.h>
-
 namespace
 {
   inline const char* skipSpace(const char* ptr, const char* end)
@@ -50,35 +47,12 @@ namespace
 namespace flb
 {
   /**
-   * Reads png files into Texture struct using libpng.
-   */
-  static Texture loadPNG(const std::filesystem::path& path)
-  {
-    png_image image{};
-    image.version = PNG_IMAGE_VERSION;
-    if (png_image_begin_read_from_file(&image, path.string().c_str()) == 0) {
-      SDL_Log("Failed to read PNG image: %s", path.string().c_str());
-      return { 0, 0, {} };
-    }
-
-    image.format = PNG_FORMAT_RGBA;
-    std::unique_ptr<std::byte[]> buffer = std::make_unique<std::byte[]>(PNG_IMAGE_SIZE(image));
-
-    if (png_image_finish_read(&image, NULL, buffer.get(), 0, NULL) == 0) {
-      SDL_Log("Failed to finish reading PNG image: %s", path.string().c_str());
-      return { 0, 0, {} };
-    }
-
-    return { image.width, image.height, std::move(buffer) };
-  }
-
-  /**
    * Reads the diffuse texture from the MTL file associated with the OBJ.
    * This is a very basic implementation that only looks for the first "map_Kd" entry.
    */
   static Texture readDiffuseTextureFromMTL(const std::filesystem::path& path)
   {
-    const auto content = readFile(path);
+    const auto content = loadFileText(path);
     const char* ptr = content.data();
     const char* end = content.data() + content.size();
     while (ptr < end) {
@@ -118,7 +92,7 @@ namespace flb
   static Mesh loadOBJ(const std::filesystem::path& path)
   {
     // Read file into memory (This is the only necessary allocation)
-    const auto content = readFile(path);
+    const auto content = loadFileText(path);
 
     // Pointers to traverse the buffer
     const char* ptr = content.data();

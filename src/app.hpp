@@ -34,7 +34,7 @@ namespace flb
     SDL_AppResult createPipeline();
     SDL_AppResult createDepthTexture(Uint32 width, Uint32 height);
 
-    SDL_AppResult createModel(const Mesh& mesh, const Texture& texture, const Transform& transform);
+    SDL_AppResult createModel(const Mesh& mesh, const Texture& texture, const Position& position, const Transform& transform);
 
     Device device;
     Window window;

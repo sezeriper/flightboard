@@ -1,6 +1,7 @@
 #include "app.hpp"
 #include "utils.hpp"
 #include "obj_loader.hpp"
+#include "map.hpp"
 
 namespace flb
 {
@@ -84,7 +85,7 @@ SDL_AppResult App::createPipeline()
       .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
     },
     .depth_stencil_state {
-      .compare_op = SDL_GPU_COMPAREOP_LESS,
+      .compare_op = SDL_GPU_COMPAREOP_GREATER, // reversed-z
       .enable_depth_test = true,
       .enable_depth_write = true,
     },
@@ -128,7 +129,7 @@ SDL_AppResult App::createPipeline()
 }
 
 
-SDL_AppResult App::createModel(const Mesh& mesh, const Texture& texture, const Transform& transform)
+SDL_AppResult App::createModel(const Mesh& mesh, const Texture& texture, const Position& position, const Transform& transform)
 {
   GPUMesh gpumesh = device.createGPUMesh(mesh);
   if (gpumesh.numOfIndices == 0)
@@ -143,6 +144,7 @@ SDL_AppResult App::createModel(const Mesh& mesh, const Texture& texture, const T
   }
 
   const auto entity = registry.create();
+  registry.emplace<Position>(entity, position);
   registry.emplace<Transform>(entity, transform);
   registry.emplace<GPUMesh>(entity, gpumesh);
   registry.emplace<GPUTexture>(entity, gputexture);
@@ -202,12 +204,27 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
-    camera.center = {0.0f, 0.0f, 0.0f};
+    auto origin = map::geoToECEF({39.811123, 30.528396}, 1'000'000.0);
+    // auto origin = map::geoToECEF({39.811123, 30.528396}, 1000.0);
+    camera.center = origin;
     camera.distance = 5.0f;
 
     const auto planeMesh = loadOBJ("content/models/floatplane/floatplane.obj");
     const auto planeTexture = readDiffuseTextureFromMTL("content/models/floatplane/floatplane.mtl");
-    createModel(planeMesh, planeTexture, glm::scale(glm::mat4{1.0f}, glm::vec3{0.01f}));
+    createModel(planeMesh, planeTexture, origin, glm::mat3{0.02f});
+
+    const auto tileset = map::load("content/tiles/eskisehir", {
+      .min {39.808129, 30.497973},
+      .max {39.820784, 30.541466},
+    });
+
+    SDL_Log("Loaded %zu tiles", tileset.tiles.size());
+
+    for (const auto& [coords, texture] : tileset.tiles)
+    {
+      const auto [mesh, pos] = map::generateTileMesh(coords);
+      createModel(mesh, texture, pos, glm::mat3{1.0f});
+    }
   }
 
   return SDL_APP_CONTINUE;
@@ -215,6 +232,15 @@ SDL_AppResult App::init()
 
 void App::cleanup()
 {
+  // cleanup entt registry resources
+  auto view = registry.view<GPUMesh, GPUTexture>();
+  for (const auto [entity, mesh, texture]: view.each())
+  {
+    SDL_ReleaseGPUBuffer(device.getDevice(), mesh.vertex);
+    SDL_ReleaseGPUBuffer(device.getDevice(), mesh.index);
+    SDL_ReleaseGPUTexture(device.getDevice(), texture);
+  }
+
   SDL_ReleaseGPUSampler(device.getDevice(), sampler);
   SDL_ReleaseGPUTexture(device.getDevice(), depthTexture);
   SDL_ReleaseGPUGraphicsPipeline(device.getDevice(), pipeline);
@@ -328,7 +354,7 @@ SDL_AppResult App::draw() const
 
   SDL_GPUDepthStencilTargetInfo depthTargetInfo {
     .texture = depthTexture,
-    .clear_depth = 1.0f,
+    .clear_depth = 0.0f, // reversed-z
     .load_op = SDL_GPU_LOADOP_CLEAR,
     .store_op = SDL_GPU_STOREOP_STORE,
   };
@@ -338,8 +364,8 @@ SDL_AppResult App::draw() const
     SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
   SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 
-  auto view = registry.view<GPUMesh, GPUTexture, Transform>();
-  for (const auto [entity, mesh, texture, transform]: view.each())
+  auto view = registry.view<GPUMesh, GPUTexture, Position, Transform>();
+  for (const auto [entity, mesh, texture, position, transform]: view.each())
   {
     SDL_GPUBufferBinding vertexBufferBinding {
       .buffer = mesh.vertex,
@@ -362,10 +388,15 @@ SDL_AppResult App::draw() const
 
     SDL_BindGPUFragmentSamplers(renderPass, 0, &samplerBinding, 1);
 
+    glm::dvec3 origin = camera.center;
+    glm::dvec3 modelPos = position;
+    glm::dvec3 relativePos = modelPos - origin;
     const Uniforms uniforms {
       .viewProjection = camera.getViewProjMat(),
-      .model = transform
+      .modelPosition = glm::vec4{relativePos, 1.0f},
+      .modelTransform = transform
     };
+
     SDL_PushGPUVertexUniformData(
       commandBuffer, 0, &uniforms, sizeof(uniforms));
     SDL_DrawGPUIndexedPrimitives(renderPass, mesh.numOfIndices, 1, 0, 0, 0);

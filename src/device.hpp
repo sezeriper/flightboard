@@ -42,11 +42,21 @@ struct GPUMesh {
 };
 using GPUTexture = SDL_GPUTexture*;
 
-using Transform = glm::mat4;
+/**
+ * Linear transformation matrix for 2D transformations (rotation, scale, shear).
+ * The translation component is stored separately in the Position component.
+ */
+using Transform = glm::mat3;
+/**
+ * Position stored as double precision vector to avoid precision issues
+ * when far from the origin in a floating origin setup.
+ */
+using Position = glm::dvec3;
 
 struct Uniforms {
-  Transform viewProjection;
-  Transform model;
+  glm::mat4 viewProjection;
+  glm::vec4 modelPosition;
+  glm::mat4 modelTransform;
 };
 
 

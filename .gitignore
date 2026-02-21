@@ -5,3 +5,4 @@ imgui.ini
 .DS_Store
 content/tiles
 **/.venv
+**/outputs
