@@ -11,25 +11,16 @@ using Duration = Uint64;
 
 static const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
 
-static TimePoint now()
-{
-  return SDL_GetPerformanceCounter();
-}
+static TimePoint now() { return SDL_GetPerformanceCounter(); }
 
-static double toSeconds(Duration duration)
-{
-  return static_cast<double>(duration) / frequency;
-}
+static double toSeconds(Duration duration) { return static_cast<double>(duration) / frequency; }
 
-static double toMilliseconds(Duration duration)
-{
-  return (static_cast<double>(duration) * 1000.0) / frequency;
-}
+static double toMilliseconds(Duration duration) { return (static_cast<double>(duration) * 1000.0) / frequency; }
 
 class Timer
 {
 public:
-  Timer(std::string_view msg) : msg(msg), start(now()) {}
+  Timer(std::string_view msg) : msg(msg), start(now()) { }
 
   ~Timer()
   {
@@ -42,4 +33,4 @@ private:
   std::string_view msg;
   TimePoint start;
 };
-}
+} // namespace flb

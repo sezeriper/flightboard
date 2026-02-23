@@ -1,16 +1,17 @@
 #pragma once
 
 #include "camera.hpp"
-#include "window.hpp"
 #include "gpu/renderer.hpp"
 #include "time.hpp"
+#include "window.hpp"
 
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 
 namespace flb
 {
-class App {
+class App
+{
 public:
   SDL_AppResult init();
   void cleanup();
@@ -18,7 +19,7 @@ public:
   SDL_AppResult update(float dt);
   SDL_AppResult draw();
 
-  TimePoint lastFrame{};
+  TimePoint lastFrame {};
 
 private:
   Window window;

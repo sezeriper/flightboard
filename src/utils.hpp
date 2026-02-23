@@ -8,19 +8,19 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 
-
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
 #include <vector>
-#include <span>
 
 namespace flb
 {
 static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
-  {
+{
   std::ifstream file(path, std::ios::binary | std::ios::ate | std::ios::in);
-  if (!file.is_open()) {
+  if (!file.is_open())
+  {
     SDL_Log("Can't open file %s", path.c_str());
     return {};
   }
@@ -29,7 +29,8 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
   file.seekg(0, std::ios::beg);
 
   std::vector<std::byte> buffer(size);
-  if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+  if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
+  {
     SDL_Log("Failed to read file %s", path.c_str());
     return {};
   }
@@ -45,19 +46,28 @@ static void loadJPG(const std::filesystem::path& path, std::span<std::byte>& out
   auto fileBuf = loadFileBinary(path);
 
   tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
-  if (handle == NULL) {
+  if (handle == NULL)
+  {
     SDL_Log("tj3Init failed: %s", tj3GetErrorStr(handle));
     return;
   }
 
-  if (tj3DecompressHeader(handle, reinterpret_cast<unsigned char*>(fileBuf.data()), fileBuf.size()) != 0) {
+  if (tj3DecompressHeader(handle, reinterpret_cast<unsigned char*>(fileBuf.data()), fileBuf.size()) != 0)
+  {
     SDL_Log("tj3DecompressHeader failed: %s", tj3GetErrorStr(handle));
     tj3Destroy(handle);
     return;
   }
 
-  auto result = tj3Decompress8(handle, reinterpret_cast<unsigned char*>(fileBuf.data()), fileBuf.size(), reinterpret_cast<unsigned char*>(outTexture.data()), 0, TJPF_RGBA);
-  if (result != 0) {
+  auto result = tj3Decompress8(
+    handle,
+    reinterpret_cast<unsigned char*>(fileBuf.data()),
+    fileBuf.size(),
+    reinterpret_cast<unsigned char*>(outTexture.data()),
+    0,
+    TJPF_RGBA);
+  if (result != 0)
+  {
     SDL_Log("tj3Decompress8 failed: %s", tj3GetErrorStr(handle));
     tj3Destroy(handle);
     return;
@@ -67,8 +77,8 @@ static void loadJPG(const std::filesystem::path& path, std::span<std::byte>& out
 }
 
 /**
-  * Reads png files into Texture struct using libpng.
-  */
+ * Reads png files into Texture struct using libpng.
+ */
 // static Texture loadPNG(const std::filesystem::path& path)
 // {
 //   png_image image{};
@@ -93,7 +103,8 @@ static void loadJPG(const std::filesystem::path& path, std::span<std::byte>& out
 static std::string loadFileText(const std::filesystem::path& path)
 {
   std::ifstream file(path, std::ios::binary | std::ios::ate | std::ios::in);
-  if (!file.is_open()) {
+  if (!file.is_open())
+  {
     SDL_Log("Can't open file %s", path.c_str());
     return {};
   }
@@ -103,7 +114,8 @@ static std::string loadFileText(const std::filesystem::path& path)
 
   std::string result;
   result.resize(size);
-  if (!file.read(result.data(), size)) {
+  if (!file.read(result.data(), size))
+  {
     SDL_Log("Failed to read file %s", path.c_str());
     return {};
   }

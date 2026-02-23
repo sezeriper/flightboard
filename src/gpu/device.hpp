@@ -1,18 +1,18 @@
 #pragma once
 
-
-#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
+#include <glm/glm.hpp>
 
-#include <vector>
 #include <span>
+#include <vector>
 
 namespace flb
 {
 namespace gpu
 {
-struct Uniforms {
+struct Uniforms
+{
   glm::mat4 viewProjection;
   glm::vec4 modelPosition;
   glm::mat4 modelTransform;
@@ -41,7 +41,8 @@ public:
 
     device = SDL_CreateGPUDevice(
       SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
-      true, NULL);
+      true,
+      NULL);
     if (device == NULL)
     {
       SDL_Log("CreateGPUDevice failed: %s", SDL_GetError());
@@ -94,8 +95,7 @@ public:
       .layer_count_or_depth = 1,
       .num_levels = 1,
     };
-    depthTexture =
-      SDL_CreateGPUTexture(device, &depthTextCreateInfo);
+    depthTexture = SDL_CreateGPUTexture(device, &depthTextCreateInfo);
     if (depthTexture == NULL)
     {
       SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
@@ -108,7 +108,8 @@ public:
   {
     Uint32 allocOffset = 0;
     auto span = allocateRaw(destinationBuffer.size, allocOffset);
-    if (span.empty()) return {};
+    if (span.empty())
+      return {};
 
     pendingBufferCopies.emplace_back(destinationBuffer, activeTransferChunkIndex, allocOffset);
 
@@ -119,7 +120,8 @@ public:
   {
     Uint32 allocOffset = 0;
     auto span = allocateRaw(destinationTexture.size, allocOffset);
-    if (span.empty()) return {};
+    if (span.empty())
+      return {};
 
     pendingTextureCopies.emplace_back(destinationTexture, activeTransferChunkIndex, allocOffset);
 
@@ -128,7 +130,8 @@ public:
 
   void upload()
   {
-    if (pendingBufferCopies.empty() && pendingTextureCopies.empty()) return;
+    if (pendingBufferCopies.empty() && pendingTextureCopies.empty())
+      return;
 
     SDL_GPUCommandBuffer* uploadCmdBuf = SDL_AcquireGPUCommandBuffer(device);
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmdBuf);
@@ -161,7 +164,7 @@ public:
       };
 
       SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
-      }
+    }
 
     SDL_EndGPUCopyPass(copyPass);
     SDL_SubmitGPUCommandBuffer(uploadCmdBuf);
@@ -181,11 +184,11 @@ public:
     if (buffer == NULL)
     {
       SDL_Log("CreateGPUBuffer failed: %s", SDL_GetError());
-      return { NULL, 0 };
+      return {NULL, 0};
     }
 
     buffersToRelease.push_back(buffer);
-    return { buffer, size };
+    return {buffer, size};
   }
 
   GPUBufferHandle createIndexBuffer(Uint32 size)
@@ -198,11 +201,11 @@ public:
     if (buffer == NULL)
     {
       SDL_Log("CreateGPUBuffer failed: %s", SDL_GetError());
-      return { NULL, 0 };
+      return {NULL, 0};
     }
 
     buffersToRelease.push_back(buffer);
-    return { buffer, size };
+    return {buffer, size};
   }
 
   GPUTextureHandle createTexture(Uint32 width, Uint32 height)
@@ -220,11 +223,11 @@ public:
     if (gpuTexture == NULL)
     {
       SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
-      return { NULL, 0, 0 };
+      return {NULL, 0, 0};
     }
 
     texturesToRelease.push_back(gpuTexture);
-    return { gpuTexture, width * height * 4, width, height };
+    return {gpuTexture, width * height * 4, width, height};
   }
 
 private:
@@ -296,7 +299,8 @@ private:
     if (size > availableMemorySize)
     {
       SDL_AppResult result = addTransferChunk();
-      if (result != SDL_APP_SUCCESS) return {};
+      if (result != SDL_APP_SUCCESS)
+        return {};
     }
 
     outAllocatedOffset = currentOffset;
@@ -306,5 +310,5 @@ private:
     return std::span<std::byte>(transferChunks[activeTransferChunkIndex].mappedMemory + outAllocatedOffset, size);
   }
 };
-}
-}
+} // namespace gpu
+} // namespace flb

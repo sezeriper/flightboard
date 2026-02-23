@@ -2,10 +2,10 @@
 
 #include "../utils.hpp"
 
-#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
+#include <glm/glm.hpp>
 
 // Helpers
 namespace
@@ -34,8 +34,7 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .include_dir = NULL,
     .defines = NULL,
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX,
-    .props = 0
-  };
+    .props = 0};
 
   const SDL_ShaderCross_HLSL_Info fragmentShaderInfo {
     .source = fragmentShaderSrc.c_str(),
@@ -43,8 +42,7 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .include_dir = NULL,
     .defines = NULL,
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
-    .props = 0
-  };
+    .props = 0};
 
   size_t vertexSPIRVSize = 0;
   void* vertexSPIRV = SDL_ShaderCross_CompileSPIRVFromHLSL(&vertexShaderInfo, &vertexSPIRVSize);
@@ -67,31 +65,25 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .bytecode_size = vertexSPIRVSize,
     .entrypoint = "main",
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX,
-    .props = 0
-  };
+    .props = 0};
   const SDL_ShaderCross_SPIRV_Info fragSPIRVInfo {
     .bytecode = (const Uint8*)fragmentSPIRV,
     .bytecode_size = fragmentSPIRVSize,
     .entrypoint = "main",
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
-    .props = 0
-  };
+    .props = 0};
 
   const SDL_ShaderCross_GraphicsShaderMetadata* vertexSPIRVMetadata =
-    SDL_ShaderCross_ReflectGraphicsSPIRV(
-      (const Uint8*)vertexSPIRV, vertexSPIRVSize, 0);
+    SDL_ShaderCross_ReflectGraphicsSPIRV((const Uint8*)vertexSPIRV, vertexSPIRVSize, 0);
 
   const SDL_ShaderCross_GraphicsShaderMetadata* fragmentSPIRVMetadata =
-    SDL_ShaderCross_ReflectGraphicsSPIRV(
-      (const Uint8*)fragmentSPIRV, fragmentSPIRVSize, 0);
+    SDL_ShaderCross_ReflectGraphicsSPIRV((const Uint8*)fragmentSPIRV, fragmentSPIRVSize, 0);
 
   *vertexShader =
-    SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
-      device, &vertSPIRVInfo, &vertexSPIRVMetadata->resource_info, 0);
+    SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &vertSPIRVInfo, &vertexSPIRVMetadata->resource_info, 0);
 
   *fragmentShader =
-    SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
-      device, &fragSPIRVInfo, &fragmentSPIRVMetadata->resource_info, 0);
+    SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &fragSPIRVInfo, &fragmentSPIRVMetadata->resource_info, 0);
 
   SDL_free((void*)vertexSPIRVMetadata);
   SDL_free((void*)fragmentSPIRVMetadata);
@@ -101,14 +93,15 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
 
   return SDL_APP_CONTINUE;
 }
-}
+} // namespace
 
 // I defined the vertex and index here because the pipeline directly depends on it
 namespace flb
 {
 namespace gpu
 {
-struct Vertex {
+struct Vertex
+{
   glm::vec3 position;
   glm::vec3 normal;
   glm::vec3 color;
@@ -130,14 +123,12 @@ public:
     }
 
     // create the pipeline
-    SDL_GPUVertexBufferDescription vertexBufferDescriptions[1] {
-      {
-        .slot = 0,
-        .pitch = sizeof(Vertex),
-        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-        .instance_step_rate = 0,
-      }
-    };
+    SDL_GPUVertexBufferDescription vertexBufferDescriptions[1] {{
+      .slot = 0,
+      .pitch = sizeof(Vertex),
+      .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+      .instance_step_rate = 0,
+    }};
 
     SDL_GPUVertexAttribute vertexAttributes[4] {
       {
@@ -164,23 +155,20 @@ public:
         .buffer_slot = 0,
         .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
         .offset = offsetof(Vertex, uv),
-      }
-    };
+      }};
 
-    SDL_GPUColorTargetDescription colorTargetDescriptions[1] {
-      {
-        .format = SDL_GetGPUSwapchainTextureFormat(device, window),
-        .blend_state {
-          .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-          .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-          .color_blend_op = SDL_GPU_BLENDOP_ADD,
-          .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-          .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-          .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-          .enable_blend = true,
-        },
-      }
-    };
+    SDL_GPUColorTargetDescription colorTargetDescriptions[1] {{
+      .format = SDL_GetGPUSwapchainTextureFormat(device, window),
+      .blend_state {
+        .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+        .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .color_blend_op = SDL_GPU_BLENDOP_ADD,
+        .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+        .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+        .enable_blend = true,
+      },
+    }};
 
     SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo {
       .vertex_shader = vertexShader,
@@ -210,8 +198,7 @@ public:
       },
     };
 
-    pipeline = SDL_CreateGPUGraphicsPipeline(
-      device, &pipelineCreateInfo);
+    pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipelineCreateInfo);
     if (pipeline == NULL)
     {
       SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
@@ -224,10 +211,7 @@ public:
     return SDL_APP_CONTINUE;
   }
 
-  void cleanup(SDL_GPUDevice* device)
-  {
-    SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-  }
+  void cleanup(SDL_GPUDevice* device) { SDL_ReleaseGPUGraphicsPipeline(device, pipeline); }
 
   SDL_GPUGraphicsPipeline* getPipeline() const { return pipeline; }
 
@@ -235,5 +219,5 @@ private:
   SDL_GPUGraphicsPipeline* pipeline = NULL;
 };
 
-}
-}
+} // namespace gpu
+} // namespace flb

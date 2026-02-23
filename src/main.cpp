@@ -7,13 +7,13 @@
 
 #include <SDL3_shadercross/SDL_shadercross.h>
 
-
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
 {
   // must be deleted in SDL_AppQuit
   auto app = new flb::App();
   SDL_AppResult result = app->init();
-  if (result != SDL_APP_CONTINUE) {
+  if (result != SDL_APP_CONTINUE)
+  {
     delete app;
     return result;
   }
@@ -74,7 +74,8 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 void SDL_AppQuit(void* appstate, SDL_AppResult result)
 {
   auto app = (flb::App*)appstate;
-  if (app) {
+  if (app)
+  {
     app->cleanup();
     delete app;
   }

@@ -36,7 +36,8 @@ struct BBOX
 };
 
 /**
- * The loading algorithm will load all tiles that intersect with the zoom region for each zoom level in the range [zoomMin, zoomMax].
+ * The loading algorithm will load all tiles that intersect with the zoom region for each zoom level in the range
+ * [zoomMin, zoomMax].
  */
 struct TilesetDescription
 {
@@ -49,7 +50,8 @@ struct TilesetDescription
 using ECEFCoords = glm::dvec3;
 
 /**
- * Returns the surface normal vector for the given geographic coordinates (latitude and longitude) on the WGS84 ellipsoid.
+ * Returns the surface normal vector for the given geographic coordinates (latitude and longitude) on the WGS84
+ * ellipsoid.
  */
 static glm::vec3 getSurfaceNormal(const GeoCoords& geo)
 {
@@ -81,7 +83,7 @@ static TileCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zo
   double numTiles = glm::pow(2.0, zoom);
   std::uint32_t tileX = static_cast<std::uint32_t>(glm::floor(x * numTiles));
   std::uint32_t tileY = static_cast<std::uint32_t>(glm::floor(y * numTiles));
-  return { zoom, tileX, tileY };
+  return {zoom, tileX, tileY};
 }
 
 /**
@@ -104,7 +106,7 @@ static ECEFCoords geoToECEF(const GeoCoords& geo)
   double y = N * cosLat * glm::sin(lonRad);
   double z = N * (1.0 - e2) * sinLat;
 
-  return { x, y, z };
+  return {x, y, z};
 }
 
 /**
@@ -128,7 +130,7 @@ static ECEFCoords geoToECEF(const GeoCoords& geo, double height)
   double y = (N + height) * cosLat * glm::sin(lonRad);
   double z = (N * (1.0 - e2) + height) * sinLat;
 
-  return { x, y, z };
+  return {x, y, z};
 }
 
 /**
@@ -152,6 +154,6 @@ static ECEFCoords tileToECEF(double tile_x, double tile_y, std::uint32_t tile_zo
   double y = N * cos_lat * glm::sin(lon);
   double z = N * (1.0 - e2) * sin_lat;
 
-  return { x, y, z };
+  return {x, y, z};
 }
-}
+} // namespace flb

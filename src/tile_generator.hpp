@@ -1,7 +1,7 @@
 #pragma once
 
-#include "math.hpp"
 #include "gpu/pipeline.hpp"
+#include "math.hpp"
 
 #include <filesystem>
 #include <vector>
@@ -41,14 +41,16 @@ static std::filesystem::path getTilePath(const std::filesystem::path& root, cons
 }
 
 /**
-  * Generates a vertices for a given tile coordinate.
-  * Calculates a grid of vertices with positions calculated based on the tile's location on the globe.
-  * Writes the vertices to the provided span, which should have a size of (GRID_RESOLUTION + 1) * (GRID_RESOLUTION + 1) to accommodate the grid.
-  */
+ * Generates a vertices for a given tile coordinate.
+ * Calculates a grid of vertices with positions calculated based on the tile's location on the globe.
+ * Writes the vertices to the provided span, which should have a size of (GRID_RESOLUTION + 1) * (GRID_RESOLUTION + 1)
+ * to accommodate the grid.
+ */
 constexpr gpu::Index GRID_RESOLUTION = 16;
 constexpr std::size_t NUM_VERTICES_PER_TILE = (GRID_RESOLUTION + 1) * (GRID_RESOLUTION + 1);
 constexpr std::size_t VERTEX_BUFFER_SIZE_PER_TILE = NUM_VERTICES_PER_TILE * sizeof(gpu::Vertex);
-static void generateTileVertices(const TileCoords& coords, const glm::dvec3& tileCenter, std::span<gpu::Vertex>& vertices)
+static void generateTileVertices(
+  const TileCoords& coords, const glm::dvec3& tileCenter, std::span<gpu::Vertex>& vertices)
 {
   double coordx = static_cast<double>(coords.x);
   double coordy = static_cast<double>(coords.y);
@@ -78,20 +80,18 @@ static void generateTileVertices(const TileCoords& coords, const glm::dvec3& til
       double x = N * cos_lat * glm::cos(lon);
       double y = N * cos_lat * glm::sin(lon);
 
-      glm::dvec3 posDouble{x, y, z};
+      glm::dvec3 posDouble {x, y, z};
       glm::dvec3 localPosDouble = posDouble - tileCenter;
       glm::vec3 position = glm::vec3(localPosDouble);
 
       glm::vec3 normal = glm::normalize(glm::dvec3(
-        posDouble.x / SEMI_MAJOR_SQUARED,
-        posDouble.y / SEMI_MAJOR_SQUARED,
-        posDouble.z / SEMI_MINOR_SQUARED));
+        posDouble.x / SEMI_MAJOR_SQUARED, posDouble.y / SEMI_MAJOR_SQUARED, posDouble.z / SEMI_MINOR_SQUARED));
 
       gpu::Vertex vertex {
         .position = position,
         .normal = normal,
-        .color = glm::vec3{1.0f},
-        .uv = glm::vec2{u, v},
+        .color = glm::vec3 {1.0f},
+        .uv = glm::vec2 {u, v},
       };
       vertices[i * (GRID_RESOLUTION + 1) + j] = vertex;
     }
@@ -99,10 +99,10 @@ static void generateTileVertices(const TileCoords& coords, const glm::dvec3& til
 }
 
 /**
-  * Generates indices for a tile grid based on the specified resolution.
-  * The indices define two triangles for each quad in the grid, which will be used for rendering the tile.
-  * The provided span should have a size of GRID_RESOLUTION * GRID_RESOLUTION * 6 to accommodate all the indices.
-  */
+ * Generates indices for a tile grid based on the specified resolution.
+ * The indices define two triangles for each quad in the grid, which will be used for rendering the tile.
+ * The provided span should have a size of GRID_RESOLUTION * GRID_RESOLUTION * 6 to accommodate all the indices.
+ */
 constexpr std::size_t NUM_INDICES_PER_TILE = GRID_RESOLUTION * GRID_RESOLUTION * 6;
 constexpr std::size_t INDEX_BUFFER_SIZE_PER_TILE = NUM_INDICES_PER_TILE * sizeof(gpu::Index);
 static void generateTileIndices(std::span<gpu::Index>& indices)
@@ -141,4 +141,4 @@ static std::vector<glm::dvec3> getTileOrigins(const std::vector<TileCoords>& til
   }
   return origins;
 }
-}
+} // namespace flb

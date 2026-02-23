@@ -32,8 +32,7 @@ static SDL_GPURenderPass* beginRenderPass(const RenderContext& context)
     .store_op = SDL_GPU_STOREOP_STORE,
   };
 
-  SDL_GPURenderPass* renderPass =
-    SDL_BeginGPURenderPass(context.commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
+  SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(context.commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
   SDL_BindGPUGraphicsPipeline(renderPass, context.pipeline);
 
   return renderPass;
@@ -60,8 +59,7 @@ static void bindIndexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer)
     .buffer = buffer,
     .offset = 0,
   };
-  SDL_BindGPUIndexBuffer(
-    context.renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+  SDL_BindGPUIndexBuffer(context.renderPass, &indexBufferBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 };
 
 static void bindSampler(const RenderContext& context, SDL_GPUTexture* texture)
@@ -73,5 +71,5 @@ static void bindSampler(const RenderContext& context, SDL_GPUTexture* texture)
   SDL_BindGPUFragmentSamplers(context.renderPass, 0, &samplerBinding, 1);
 }
 
-}
-}
+} // namespace gpu
+} // namespace flb

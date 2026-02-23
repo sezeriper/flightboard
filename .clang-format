@@ -1,0 +1,42 @@
+---
+Language: Cpp
+Standard: c++20
+
+# Indentation
+IndentWidth: 2
+ContinuationIndentWidth: 2
+TabWidth: 2
+UseTab: Never
+AccessModifierOffset: -2
+IndentCaseLabels: true
+NamespaceIndentation: None
+
+# Brace Breaking
+BreakBeforeBraces: Allman
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: true
+
+BinPackParameters: false
+BinPackArguments: false
+AlignAfterOpenBracket: AlwaysBreak
+
+PointerAlignment: Left
+AlignTrailingComments: true
+ColumnLimit: 120
+
+SortIncludes: true
+IncludeBlocks: Preserve
+
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceInEmptyBlock: true
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpaceBeforeAssignmentOperators: true
+
+FixNamespaceComments: true
+
+AlwaysBreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 100000
+...
