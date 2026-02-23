@@ -69,7 +69,7 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
-    if (renderer.init(window) != SDL_APP_CONTINUE)
+    if (renderer.init(window.getWindow()) != SDL_APP_CONTINUE)
     {
       return SDL_APP_FAILURE;
     }
@@ -90,7 +90,7 @@ SDL_AppResult App::init()
 void App::cleanup()
 {
   registry.clear();
-  renderer.cleanup(window);
+  renderer.cleanup(window.getWindow());
   window.cleanup();
 }
 

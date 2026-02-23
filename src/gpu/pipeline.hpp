@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../window.hpp"
 #include "../utils.hpp"
-#include "device.hpp"
 
+#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
@@ -120,11 +119,11 @@ using Index = Uint16;
 class Pipeline
 {
 public:
-  SDL_AppResult init(const Device& device, const Window& window)
+  SDL_AppResult init(SDL_GPUDevice* device, SDL_Window* window)
   {
     SDL_GPUShader* vertexShader = NULL;
     SDL_GPUShader* fragmentShader = NULL;
-    SDL_AppResult shaderResult = createShaders(device.getDevice(), &vertexShader, &fragmentShader);
+    SDL_AppResult shaderResult = createShaders(device, &vertexShader, &fragmentShader);
     if (shaderResult != SDL_APP_CONTINUE)
     {
       return shaderResult;
@@ -170,7 +169,7 @@ public:
 
     SDL_GPUColorTargetDescription colorTargetDescriptions[1] {
       {
-        .format = SDL_GetGPUSwapchainTextureFormat(device.getDevice(), window.getWindow()),
+        .format = SDL_GetGPUSwapchainTextureFormat(device, window),
         .blend_state {
           .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
           .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
@@ -212,22 +211,22 @@ public:
     };
 
     pipeline = SDL_CreateGPUGraphicsPipeline(
-      device.getDevice(), &pipelineCreateInfo);
+      device, &pipelineCreateInfo);
     if (pipeline == NULL)
     {
       SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
       return SDL_APP_FAILURE;
     }
 
-    SDL_ReleaseGPUShader(device.getDevice(), vertexShader);
-    SDL_ReleaseGPUShader(device.getDevice(), fragmentShader);
+    SDL_ReleaseGPUShader(device, vertexShader);
+    SDL_ReleaseGPUShader(device, fragmentShader);
 
     return SDL_APP_CONTINUE;
   }
 
-  void cleanup(const Device& device)
+  void cleanup(SDL_GPUDevice* device)
   {
-    SDL_ReleaseGPUGraphicsPipeline(device.getDevice(), pipeline);
+    SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
   }
 
   SDL_GPUGraphicsPipeline* getPipeline() const { return pipeline; }

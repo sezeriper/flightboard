@@ -1,6 +1,7 @@
 #pragma once
 
-#include "device.hpp"
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_gpu.h>
 
 namespace flb
 {
@@ -10,7 +11,7 @@ namespace gpu
 class Sampler
 {
 public:
-  SDL_AppResult init(const Device& device)
+  SDL_AppResult init(SDL_GPUDevice* device)
   {
     SDL_GPUSamplerCreateInfo samplerCreateInfo {
      	.min_filter = SDL_GPU_FILTER_LINEAR,
@@ -20,7 +21,7 @@ public:
      	.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
      	.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
     };
-    sampler = SDL_CreateGPUSampler(device.getDevice(), &samplerCreateInfo);
+    sampler = SDL_CreateGPUSampler(device, &samplerCreateInfo);
     if (sampler == NULL)
     {
       SDL_Log("CreateGPUSampler failed: %s", SDL_GetError());
@@ -30,9 +31,9 @@ public:
     return SDL_APP_CONTINUE;
   }
 
-  void cleanup(const Device& device)
+  void cleanup(SDL_GPUDevice* device)
   {
-    SDL_ReleaseGPUSampler(device.getDevice(), sampler);
+    SDL_ReleaseGPUSampler(device, sampler);
   }
 
   SDL_GPUSampler* getSampler() const { return sampler; }

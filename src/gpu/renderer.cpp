@@ -1,9 +1,7 @@
 #include "gpu/renderer.hpp"
-#include "gpu/render_context.hpp"
 #include "tile_generator.hpp"
 #include "components.hpp"
 
-#include <SDL3/SDL.h>
 
 using namespace flb;
 
@@ -47,25 +45,25 @@ void executeRenderLoop(
 
 namespace flb {
 
-SDL_AppResult Renderer::init(const Window& window)
+SDL_AppResult Renderer::init(SDL_Window* window)
 {
     if (device.init() != SDL_APP_CONTINUE)
     {
       return SDL_APP_FAILURE;
     }
 
-    if (!SDL_ClaimWindowForGPUDevice(device.getDevice(), window.getWindow()))
+    if (!SDL_ClaimWindowForGPUDevice(device.getDevice(), window))
     {
       SDL_Log("ClaimWindowForGPUDevice failed: %s", SDL_GetError());
       return SDL_APP_FAILURE;
     }
 
-    if (pipeline.init(device, window) != SDL_APP_CONTINUE)
+    if (pipeline.init(device.getDevice(), window) != SDL_APP_CONTINUE)
     {
       return SDL_APP_FAILURE;
     }
 
-    if (sampler.init(device) != SDL_APP_CONTINUE)
+    if (sampler.init(device.getDevice()) != SDL_APP_CONTINUE)
     {
       return SDL_APP_FAILURE;
     }
@@ -86,11 +84,11 @@ SDL_AppResult Renderer::init(const Window& window)
     return SDL_APP_CONTINUE;
 }
 
-void Renderer::cleanup(const Window& window)
+void Renderer::cleanup(SDL_Window* window)
 {
-    sampler.cleanup(device);
-    pipeline.cleanup(device);
-    SDL_ReleaseWindowFromGPUDevice(device.getDevice(), window.getWindow());
+    sampler.cleanup(device.getDevice());
+    pipeline.cleanup(device.getDevice());
+    SDL_ReleaseWindowFromGPUDevice(device.getDevice(), window);
     device.cleanup();
 }
 

@@ -13,8 +13,8 @@ namespace flb {
 
 class Renderer {
 public:
-    SDL_AppResult init(const Window& window);
-    void cleanup(const Window& window);
+    SDL_AppResult init(SDL_Window* window);
+    void cleanup(SDL_Window* window);
 
     SDL_AppResult draw(entt::registry& registry, const FPSCamera& camera, const Window& window) const;
 
