@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gpu/render_context.hpp"
+
 #include <SDL3/SDL.h>
 
 namespace flb
@@ -24,9 +26,18 @@ public:
     SDL_DestroyWindow(window);
   }
 
-  SDL_Window* getWindow() const
+  SDL_Window* getWindow() const { return window; }
+
+  SDL_GPUTexture* getSwapChainTexture(const gpu::RenderContext& context) const
   {
-    return window;
+    SDL_GPUTexture* swapchainTexture = NULL;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+      context.commandBuffer, window, &swapchainTexture, NULL, NULL))
+    {
+      SDL_Log("WaitAndAcquireGPUSwapchainTexture failed: %s", SDL_GetError());
+      return NULL;
+    }
+    return swapchainTexture;
   }
 
 private:

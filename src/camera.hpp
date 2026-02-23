@@ -1,7 +1,10 @@
 #pragma once
 
+#include <SDL3/SDL.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace
 {
@@ -20,6 +23,7 @@ static glm::mat4 createInfiniteReversedZ(float fovRadians, float aspectRatio, fl
     return proj;
 }
 }
+
 namespace flb {
 
 class Camera {
@@ -27,9 +31,11 @@ public:
   float fov{75.0f};
   float aspect{1.0f};
   float near{1.0f};
-  float yaw{glm::radians(-90.0f)};
+
+  float yaw{0.0f};
   float pitch{0.0f};
-  glm::vec3 up{0.0f, 1.0f, 0.0f};
+  glm::vec3 up{0.0f, 0.0f, 1.0f}; // Default to ECEF Z up
+
 protected:
 
   glm::mat4 calcProjMat() const {
@@ -37,49 +43,73 @@ protected:
   }
 
   glm::vec3 getFront() const {
-    return glm::vec3(
-      glm::cos(yaw) * glm::cos(pitch),
-      glm::sin(pitch),
-      glm::sin(yaw) * glm::cos(pitch)
-    );
+    // 1. Determine a stable 'reference forward' tangent to the surface
+    // Using ECEF convention where (0,0,1) is the North Pole.
+    glm::vec3 worldNorth(0.0f, 0.0f, 1.0f);
+
+    // If we're exactly at the poles, pick an arbitrary alternative
+    if (glm::abs(glm::dot(up, worldNorth)) > 0.999f) {
+      worldNorth = glm::vec3(1.0f, 0.0f, 0.0f);
+    }
+
+    // Reference forward points 'North' along the surface
+    glm::vec3 refForward = glm::normalize(worldNorth - up * glm::dot(worldNorth, up));
+
+    // 2. Rotate by 'yaw' around the surface normal ('up' vector)
+    glm::quat yawRot = glm::angleAxis(yaw, up);
+    glm::vec3 yawedForward = yawRot * refForward;
+
+    // 3. Find the right vector to pitch around
+    glm::vec3 right = glm::normalize(glm::cross(yawedForward, up));
+
+    // 4. Apply pitch (up/down)
+    glm::quat pitchRot = glm::angleAxis(pitch, right);
+    return pitchRot * yawedForward;
   }
 
   glm::vec3 getRight() const {
     return glm::normalize(glm::cross(getFront(), up));
   }
-
-  glm::vec3 getUp() const {
-    return glm::normalize(glm::cross(getRight(), getFront()));
-  }
 };
 
 /**
- * Designed to be used with floating origin
- * where world is rendered relative to the camera's position.
- * Because of this position is stored as double and view matrix is fixed at origin.
- * Camea stays still and world moves around it, so we don't lose precision when far from the origin.
+ * Designed to be used with floating origin where world is rendered relative to the camera's position.
  */
-class FpsCamera : public Camera {
+class FPSCamera : public Camera {
 public:
-  glm::dvec3 pos{0.0};
+  glm::dvec3 position{0.0};
+  double speed = 100.0;
+  float sensitivity = 0.006f;
 
   glm::mat4 getViewProjMat() const {
     return calcProjMat() * calcViewMat();
   }
 
+  void updateMouse(float deltaX, float deltaY) {
+    yaw -= deltaX * sensitivity;
+    pitch -= deltaY * sensitivity;
+
+    // Clamp the pitch to prevent flipping straight up/down
+    pitch = glm::clamp(pitch, glm::radians(-89.0f), glm::radians(89.0f));
+  }
+
+  void updateKeyboard(float dt, const bool* keyStates) {
+    double moveSpeed = speed * static_cast<double>(dt);
+    if (keyStates[SDL_SCANCODE_W]) position += glm::dvec3(getFront()) * moveSpeed;
+    if (keyStates[SDL_SCANCODE_A]) position -= glm::dvec3(getRight()) * moveSpeed;
+    if (keyStates[SDL_SCANCODE_S]) position -= glm::dvec3(getFront()) * moveSpeed;
+    if (keyStates[SDL_SCANCODE_D]) position += glm::dvec3(getRight()) * moveSpeed;
+  }
+
 private:
   glm::mat4 calcViewMat() const {
-    auto front = getFront();
-    auto up = getUp();
-    return glm::lookAt(glm::vec3{0.0f}, front, up);
+    // View matrix guarantees 'up' is fixed mathematically to eliminate any possible roll.
+    return glm::lookAt(glm::vec3{0.0f}, getFront(), up);
   }
 };
 
 /**
- * Designed to be used with floating origin
- * where world is rendered relative to the camera's position.
- * Because of this position is stored as double and view matrix is fixed at origin.
- * Camea stays still and world moves around it, so we don't lose precision when far from the origin.
+ * Designed for orbital view around a center point.
  */
 class OrbitalCamera : public Camera {
 public:
@@ -92,9 +122,7 @@ public:
 
 private:
   glm::mat4 calcViewMat() const {
-    auto front = getFront();
-    auto up = getUp();
-    return glm::lookAt(-distance * front, glm::vec3{0.0f}, up);
+    return glm::lookAt(-distance * getFront(), glm::vec3{0.0f}, up);
   }
 };
 }

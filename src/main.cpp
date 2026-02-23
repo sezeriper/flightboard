@@ -19,7 +19,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
   }
   *appstate = app;
 
-  app->lastFrame = flb::Time::now();
+  app->lastFrame = flb::now();
   return SDL_APP_CONTINUE;
 }
 
@@ -29,31 +29,45 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
   SDL_AppResult result = app->handleEvent(event);
   if (result != SDL_APP_CONTINUE)
   {
-    return SDL_APP_FAILURE;
+    return result; // Forward SUCCESS (quit) or FAILURE directly
   }
   return SDL_APP_CONTINUE;
 }
 
+static flb::TimePoint lastFpsLog = 0;
+static Uint64 frameCount = 0;
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
   auto* app = static_cast<flb::App*>(appstate);
 
-  const flb::Time::TimePoint now = flb::Time::now();
-  const flb::Time::Duration dt = now - app->lastFrame;
+  const flb::TimePoint now = flb::now();
+  const flb::Duration dt = now - app->lastFrame;
   app->lastFrame = now;
 
-  SDL_AppResult result = app->update(flb::Time::toSeconds(dt));
+  // log fps every 250 ms
+  if (flb::toSeconds(now - lastFpsLog) >= 0.25 && frameCount != 0)
+  {
+    double fps = static_cast<double>(frameCount) / flb::toSeconds(now - lastFpsLog);
+    SDL_Log("FPS: %.2f", fps);
+    lastFpsLog = now;
+    frameCount = 0;
+  }
+
+  SDL_AppResult result = app->update(flb::toSeconds(dt));
   if (result != SDL_APP_CONTINUE)
   {
+    SDL_Log("AppIterate update failed");
     return SDL_APP_FAILURE;
   }
 
   result = app->draw();
   if (result != SDL_APP_CONTINUE)
   {
+    SDL_Log("AppIterate draw failed");
     return SDL_APP_FAILURE;
   }
 
+  ++frameCount;
   return SDL_APP_CONTINUE;
 }
 

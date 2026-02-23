@@ -112,7 +112,12 @@ set_target_properties(TurboJpeg::TurboJpeg PROPERTIES
 # 5. Tell CMake that this imported target cannot be resolved until the external project finishes
 add_dependencies(TurboJpeg::TurboJpeg libjpeg-turbo_ext)
 
-add_executable(flightboard src/main.cpp src/app.cpp)
+add_subdirectory(external/concurrentqueue)
+add_executable(flightboard
+  src/main.cpp
+  src/app.cpp
+  src/gpu/renderer.cpp
+)
 add_dependencies(flightboard libjpeg-turbo_ext)
 
 target_compile_options(flightboard PRIVATE
@@ -121,7 +126,7 @@ target_compile_options(flightboard PRIVATE
 
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)
 
-target_include_directories(flightboard PRIVATE "${LIBJPEG_INSTALL_DIR}/include")
+target_include_directories(flightboard PRIVATE "${LIBJPEG_INSTALL_DIR}/include" "src")
 
 target_link_libraries(flightboard PRIVATE
   glm
@@ -130,4 +135,5 @@ target_link_libraries(flightboard PRIVATE
   EnTT
   png_static
   TurboJpeg::TurboJpeg
+  concurrentqueue
 )

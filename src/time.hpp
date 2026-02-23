@@ -6,8 +6,6 @@
 
 namespace flb
 {
-namespace Time
-{
 using TimePoint = Uint64;
 using Duration = Uint64;
 
@@ -22,22 +20,26 @@ static double toSeconds(Duration duration)
 {
   return static_cast<double>(duration) / frequency;
 }
+
+static double toMilliseconds(Duration duration)
+{
+  return (static_cast<double>(duration) * 1000.0) / frequency;
 }
 
 class Timer
 {
 public:
-  Timer(std::string_view msg) : msg(msg), start(Time::now()) {}
+  Timer(std::string_view msg) : msg(msg), start(now()) {}
 
   ~Timer()
   {
-    const Time::TimePoint end = Time::now();
-    const Time::Duration duration = end - start;
-    SDL_Log("%s: %.6f seconds", msg.data(), Time::toSeconds(duration));
+    const TimePoint end = now();
+    const Duration duration = end - start;
+    SDL_Log("%s: %.6f seconds", msg.data(), toSeconds(duration));
   }
 
 private:
   std::string_view msg;
-  Time::TimePoint start;
+  TimePoint start;
 };
 }

@@ -173,8 +173,8 @@ def main():
                 result = future.result()
                 completed_count += 1
                 # Simple progress output
-                # if completed_count % 10 == 0 or completed_count == total_tile_count:
-                print(f"[{completed_count}/{total_tile_count}] ... {result}")
+                if completed_count % 100 == 0 or completed_count == total_tile_count:
+                  print(f"[{completed_count}/{total_tile_count}] ... {result}")
 
     except KeyboardInterrupt:
         print("\n\n[!] Operation cancelled by user (Ctrl+C).")
