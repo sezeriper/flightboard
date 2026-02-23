@@ -70,6 +70,19 @@ SDL_AppResult Renderer::init(const Window& window)
       return SDL_APP_FAILURE;
     }
 
+    SDL_PropertiesID props = SDL_GetGPUDeviceProperties(device.getDevice());
+    auto deviceName = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_NAME_STRING, "Unknown GPU");
+    SDL_Log("Using GPU: %s", deviceName);
+    auto driverName = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_NAME_STRING, "Unknown Driver");
+    SDL_Log("GPU Driver: %s", driverName);
+    auto driverVersion = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "Unknown Version");
+    SDL_Log("GPU Driver Version: %s", driverVersion);
+    auto driverInfo = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_DRIVER_INFO_STRING, "No additional info");
+    SDL_Log("GPU Driver Info: %s", driverInfo);
+
+    auto backend = SDL_GetGPUDeviceDriver(device.getDevice());
+    SDL_Log("GPU Backend: %s", backend);
+
     return SDL_APP_CONTINUE;
 }
 
