@@ -86,7 +86,7 @@ public:
       depthTexture = NULL;
     }
 
-    SDL_GPUTextureCreateInfo depthTextCreateInfo {
+    SDL_GPUTextureCreateInfo depthTextCreateInfo{
       .type = SDL_GPU_TEXTURETYPE_2D,
       .format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
       .usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
@@ -137,11 +137,11 @@ public:
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmdBuf);
     for (const auto& copy : pendingBufferCopies)
     {
-      SDL_GPUTransferBufferLocation source {
+      SDL_GPUTransferBufferLocation source{
         .transfer_buffer = transferChunks[copy.transferChunkIndex].transferBuffer,
         .offset = copy.offsetInTransferBuffer,
       };
-      SDL_GPUBufferRegion destination {
+      SDL_GPUBufferRegion destination{
         .buffer = copy.destinationBuffer.buffer,
         .offset = 0,
         .size = copy.destinationBuffer.size,
@@ -152,11 +152,11 @@ public:
 
     for (const auto& copy : pendingTextureCopies)
     {
-      SDL_GPUTextureTransferInfo source {
+      SDL_GPUTextureTransferInfo source{
         .transfer_buffer = transferChunks[copy.transferChunkIndex].transferBuffer,
         .offset = copy.offsetInTransferBuffer,
       };
-      SDL_GPUTextureRegion destination {
+      SDL_GPUTextureRegion destination{
         .texture = copy.destinationTexture.texture,
         .w = copy.destinationTexture.width,
         .h = copy.destinationTexture.height,
@@ -176,7 +176,7 @@ public:
 
   GPUBufferHandle createVertexBuffer(Uint32 size)
   {
-    SDL_GPUBufferCreateInfo bufferCreateInfo {
+    SDL_GPUBufferCreateInfo bufferCreateInfo{
       .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
       .size = size,
     };
@@ -193,7 +193,7 @@ public:
 
   GPUBufferHandle createIndexBuffer(Uint32 size)
   {
-    SDL_GPUBufferCreateInfo bufferCreateInfo {
+    SDL_GPUBufferCreateInfo bufferCreateInfo{
       .usage = SDL_GPU_BUFFERUSAGE_INDEX,
       .size = size,
     };
@@ -210,7 +210,7 @@ public:
 
   GPUTextureHandle createTexture(Uint32 width, Uint32 height)
   {
-    SDL_GPUTextureCreateInfo textureCreateInfo {
+    SDL_GPUTextureCreateInfo textureCreateInfo{
       .type = SDL_GPU_TEXTURETYPE_2D,
       .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
       .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
@@ -267,7 +267,7 @@ private:
 
   SDL_AppResult addTransferChunk()
   {
-    SDL_GPUTransferBufferCreateInfo transferBufCreateInfo {
+    SDL_GPUTransferBufferCreateInfo transferBufCreateInfo{
       .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
       .size = TRANSFER_BUFFER_ALLOCATION_SIZE,
     };

@@ -14,7 +14,7 @@ NamespaceIndentation: None
 # Brace Breaking
 BreakBeforeBraces: Allman
 Cpp11BracedListStyle: true
-SpaceBeforeCpp11BracedList: true
+SpaceBeforeCpp11BracedList: false
 
 BinPackParameters: false
 BinPackArguments: false
@@ -34,6 +34,7 @@ SpaceInEmptyBlock: true
 SpaceAfterCStyleCast: false
 SpaceBeforeParens: ControlStatements
 SpaceBeforeAssignmentOperators: true
+SpaceBeforeInheritanceColon: false
 
 FixNamespaceComments: true
 

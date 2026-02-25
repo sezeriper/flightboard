@@ -18,14 +18,14 @@ struct RenderContext
 
 static SDL_GPURenderPass* beginRenderPass(const RenderContext& context)
 {
-  SDL_GPUColorTargetInfo colorTargetInfo {
+  SDL_GPUColorTargetInfo colorTargetInfo{
     .texture = context.swapchainTexture,
-    .clear_color {0.0f, 0.0f, 0.0f, 1.0f},
+    .clear_color{0.0f, 0.0f, 0.0f, 1.0f},
     .load_op = SDL_GPU_LOADOP_CLEAR,
     .store_op = SDL_GPU_STOREOP_STORE,
   };
 
-  SDL_GPUDepthStencilTargetInfo depthTargetInfo {
+  SDL_GPUDepthStencilTargetInfo depthTargetInfo{
     .texture = context.depthTexture,
     .clear_depth = 0.0f, // reversed-z
     .load_op = SDL_GPU_LOADOP_CLEAR,
@@ -46,7 +46,7 @@ static void endRenderPass(const RenderContext& context)
 
 static void bindVertexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer)
 {
-  SDL_GPUBufferBinding vertexBufferBinding {
+  SDL_GPUBufferBinding vertexBufferBinding{
     .buffer = buffer,
     .offset = 0,
   };
@@ -55,7 +55,7 @@ static void bindVertexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer
 
 static void bindIndexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer)
 {
-  SDL_GPUBufferBinding indexBufferBinding {
+  SDL_GPUBufferBinding indexBufferBinding{
     .buffer = buffer,
     .offset = 0,
   };
@@ -64,7 +64,7 @@ static void bindIndexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer)
 
 static void bindSampler(const RenderContext& context, SDL_GPUTexture* texture)
 {
-  SDL_GPUTextureSamplerBinding samplerBinding {
+  SDL_GPUTextureSamplerBinding samplerBinding{
     .texture = texture,
     .sampler = context.sampler,
   };

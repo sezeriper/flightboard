@@ -10,15 +10,15 @@ namespace
 void loadTiles(gpu::Device& device, entt::registry& registry)
 {
   Timer timer("Tile loading");
-  TilesetDescription tilesetDescription {
+  TilesetDescription tilesetDescription{
     .tileImageSize = 256,
     .zoomMin = 6,
     .zoomMax = 6,
-    .zoomRegion {
+    .zoomRegion{
       // .min {39.808129, 30.497973},
       // .max {39.820784, 30.541466},
-      .min {-85.0, -179.0},
-      .max {85.0, 179.0},
+      .min{-85.0, -179.0},
+      .max{85.0, 179.0},
     }};
 
   const auto tileCoords = getIntersectingTileCoords(tilesetDescription);
@@ -72,7 +72,7 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
-    GeoCoords startCoords {39.811123, 30.528396};
+    GeoCoords startCoords{39.811123, 30.528396};
     auto position = geoToECEF(startCoords, 1'000'000.0);
     // auto position = map::geoToECEF(origin);
     camera.up = getSurfaceNormal({39.811123, 30.528396});

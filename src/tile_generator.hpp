@@ -80,18 +80,18 @@ static void generateTileVertices(
       double x = N * cos_lat * glm::cos(lon);
       double y = N * cos_lat * glm::sin(lon);
 
-      glm::dvec3 posDouble {x, y, z};
+      glm::dvec3 posDouble{x, y, z};
       glm::dvec3 localPosDouble = posDouble - tileCenter;
       glm::vec3 position = glm::vec3(localPosDouble);
 
       glm::vec3 normal = glm::normalize(glm::dvec3(
         posDouble.x / SEMI_MAJOR_SQUARED, posDouble.y / SEMI_MAJOR_SQUARED, posDouble.z / SEMI_MINOR_SQUARED));
 
-      gpu::Vertex vertex {
+      gpu::Vertex vertex{
         .position = position,
         .normal = normal,
-        .color = glm::vec3 {1.0f},
-        .uv = glm::vec2 {u, v},
+        .color = glm::vec3{1.0f},
+        .uv = glm::vec2{u, v},
       };
       vertices[i * (GRID_RESOLUTION + 1) + j] = vertex;
     }

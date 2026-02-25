@@ -13,7 +13,7 @@ class Sampler
 public:
   SDL_AppResult init(SDL_GPUDevice* device)
   {
-    SDL_GPUSamplerCreateInfo samplerCreateInfo {
+    SDL_GPUSamplerCreateInfo samplerCreateInfo{
       .min_filter = SDL_GPU_FILTER_LINEAR,
       .mag_filter = SDL_GPU_FILTER_LINEAR,
       .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR,

@@ -28,7 +28,7 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
 
   SDL_ShaderCross_Init();
 
-  const SDL_ShaderCross_HLSL_Info vertexShaderInfo {
+  const SDL_ShaderCross_HLSL_Info vertexShaderInfo{
     .source = vertexShaderSrc.c_str(),
     .entrypoint = "main",
     .include_dir = NULL,
@@ -36,7 +36,7 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX,
     .props = 0};
 
-  const SDL_ShaderCross_HLSL_Info fragmentShaderInfo {
+  const SDL_ShaderCross_HLSL_Info fragmentShaderInfo{
     .source = fragmentShaderSrc.c_str(),
     .entrypoint = "main",
     .include_dir = NULL,
@@ -60,13 +60,13 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
   }
 
   // compile SPIR-V to backend-specific shader code
-  const SDL_ShaderCross_SPIRV_Info vertSPIRVInfo {
+  const SDL_ShaderCross_SPIRV_Info vertSPIRVInfo{
     .bytecode = (const Uint8*)vertexSPIRV,
     .bytecode_size = vertexSPIRVSize,
     .entrypoint = "main",
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX,
     .props = 0};
-  const SDL_ShaderCross_SPIRV_Info fragSPIRVInfo {
+  const SDL_ShaderCross_SPIRV_Info fragSPIRVInfo{
     .bytecode = (const Uint8*)fragmentSPIRV,
     .bytecode_size = fragmentSPIRVSize,
     .entrypoint = "main",
@@ -123,14 +123,14 @@ public:
     }
 
     // create the pipeline
-    SDL_GPUVertexBufferDescription vertexBufferDescriptions[1] {{
+    SDL_GPUVertexBufferDescription vertexBufferDescriptions[1]{{
       .slot = 0,
       .pitch = sizeof(Vertex),
       .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
       .instance_step_rate = 0,
     }};
 
-    SDL_GPUVertexAttribute vertexAttributes[4] {
+    SDL_GPUVertexAttribute vertexAttributes[4]{
       {
         .location = 0,
         .buffer_slot = 0,
@@ -157,9 +157,9 @@ public:
         .offset = offsetof(Vertex, uv),
       }};
 
-    SDL_GPUColorTargetDescription colorTargetDescriptions[1] {{
+    SDL_GPUColorTargetDescription colorTargetDescriptions[1]{{
       .format = SDL_GetGPUSwapchainTextureFormat(device, window),
-      .blend_state {
+      .blend_state{
         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
         .color_blend_op = SDL_GPU_BLENDOP_ADD,
@@ -170,27 +170,27 @@ public:
       },
     }};
 
-    SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo {
+    SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo{
       .vertex_shader = vertexShader,
       .fragment_shader = fragmentShader,
-      .vertex_input_state {
+      .vertex_input_state{
         .vertex_buffer_descriptions = vertexBufferDescriptions,
         .num_vertex_buffers = 1,
         .vertex_attributes = vertexAttributes,
         .num_vertex_attributes = 4,
       },
       .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-      .rasterizer_state {
+      .rasterizer_state{
         .fill_mode = SDL_GPU_FILLMODE_FILL,
         .cull_mode = SDL_GPU_CULLMODE_BACK,
         .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
       },
-      .depth_stencil_state {
+      .depth_stencil_state{
         .compare_op = SDL_GPU_COMPAREOP_GREATER, // reversed-z
         .enable_depth_test = true,
         .enable_depth_write = true,
       },
-      .target_info {
+      .target_info{
         .color_target_descriptions = colorTargetDescriptions,
         .num_color_targets = 1,
         .depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,

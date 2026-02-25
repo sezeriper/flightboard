@@ -19,7 +19,7 @@ public:
   SDL_AppResult update(float dt);
   SDL_AppResult draw();
 
-  TimePoint lastFrame {};
+  TimePoint lastFrame{};
 
 private:
   Window window;

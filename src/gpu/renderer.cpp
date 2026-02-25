@@ -28,10 +28,10 @@ void executeRenderLoop(const gpu::RenderContext& context, entt::registry& regist
     boundIndexBuffer = indexBuffer.value;
     boundTexture = texture.value;
 
-    const gpu::Uniforms uniforms {
+    const gpu::Uniforms uniforms{
       .viewProjection = viewProjMat,
-      .modelPosition = glm::vec4 {position.value - camera.position, 1.0f},
-      .modelTransform = glm::mat4 {1.0f},
+      .modelPosition = glm::vec4{position.value - camera.position, 1.0f},
+      .modelTransform = glm::mat4{1.0f},
     };
     SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
     SDL_DrawGPUIndexedPrimitives(context.renderPass, NUM_INDICES_PER_TILE, 1, 0, 0, 0);

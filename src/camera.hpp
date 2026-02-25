@@ -12,7 +12,7 @@ static glm::mat4 createInfiniteReversedZ(float fovRadians, float aspectRatio, fl
 {
   float f = 1.0f / glm::tan(fovRadians / 2.0f);
 
-  glm::mat4 proj {0.0f};
+  glm::mat4 proj{0.0f};
 
   proj[0][0] = f / aspectRatio;
   proj[1][1] = f;
@@ -30,13 +30,13 @@ namespace flb
 class Camera
 {
 public:
-  float fov {75.0f};
-  float aspect {1.0f};
-  float near {1.0f};
+  float fov{75.0f};
+  float aspect{1.0f};
+  float near{1.0f};
 
-  float yaw {0.0f};
-  float pitch {0.0f};
-  glm::vec3 up {0.0f, 0.0f, 1.0f}; // Default to ECEF Z up
+  float yaw{0.0f};
+  float pitch{0.0f};
+  glm::vec3 up{0.0f, 0.0f, 1.0f}; // Default to ECEF Z up
 
 protected:
   glm::mat4 calcProjMat() const { return createInfiniteReversedZ(glm::radians(fov), aspect, near); }
@@ -77,10 +77,10 @@ static void lo() {};
  * Designed to be used with floating origin where world is rendered relative to
  * the camera's position.
  */
-class FPSCamera : public Camera
+class FPSCamera: public Camera
 {
 public:
-  glm::dvec3 position {0.0};
+  glm::dvec3 position{0.0};
   double speed = 100.0;
   float sensitivity = 0.006f;
 
@@ -113,22 +113,22 @@ private:
   {
     // View matrix guarantees 'up' is fixed mathematically to eliminate any
     // possible roll.
-    return glm::lookAt(glm::vec3 {0.0f}, getFront(), up);
+    return glm::lookAt(glm::vec3{0.0f}, getFront(), up);
   }
 };
 
 /**
  * Designed for orbital view around a center point.
  */
-class OrbitalCamera : public Camera
+class OrbitalCamera: public Camera
 {
 public:
-  glm::dvec3 center {0.0f};
-  float distance {10.0f};
+  glm::dvec3 center{0.0f};
+  float distance{10.0f};
 
   glm::mat4 getViewProjMat() const { return calcProjMat() * calcViewMat(); }
 
 private:
-  glm::mat4 calcViewMat() const { return glm::lookAt(-distance * getFront(), glm::vec3 {0.0f}, up); }
+  glm::mat4 calcViewMat() const { return glm::lookAt(-distance * getFront(), glm::vec3{0.0f}, up); }
 };
 } // namespace flb
