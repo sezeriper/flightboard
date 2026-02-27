@@ -26,7 +26,7 @@ public:
   {
     const TimePoint end = now();
     const Duration duration = end - start;
-    SDL_Log("%s: %.6f seconds", msg.data(), toSeconds(duration));
+    SDL_Log("%s: %.6f milliseconds", msg.data(), toMilliseconds(duration));
   }
 
 private:

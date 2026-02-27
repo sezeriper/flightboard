@@ -21,7 +21,7 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
   std::ifstream file(path, std::ios::binary | std::ios::ate | std::ios::in);
   if (!file.is_open())
   {
-    SDL_Log("Can't open file %s", path.c_str());
+    // SDL_Log("Can't open file %s", path.c_str());
     return {};
   }
 
@@ -31,7 +31,7 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
   std::vector<std::byte> buffer(size);
   if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
   {
-    SDL_Log("Failed to read file %s", path.c_str());
+    // SDL_Log("Failed to read file %s", path.c_str());
     return {};
   }
 
@@ -41,10 +41,8 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
 /**
  * Read jpg files into Texture struct using turboJPEG.
  */
-static void loadJPG(const std::filesystem::path& path, std::span<std::byte>& outTexture)
+static void loadJPG(std::span<std::byte> fileBuf, std::span<std::byte> outTexture)
 {
-  auto fileBuf = loadFileBinary(path);
-
   tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
   if (handle == NULL)
   {

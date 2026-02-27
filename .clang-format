@@ -40,4 +40,6 @@ FixNamespaceComments: true
 
 AlwaysBreakAfterReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 100000
+
+AlwaysBreakTemplateDeclarations: true
 ...

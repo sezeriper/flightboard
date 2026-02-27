@@ -17,6 +17,9 @@ void executeRenderLoop(const gpu::RenderContext& context, entt::registry& regist
     registry.group<component::Position, component::VertexBuffer, component::IndexBuffer, component::Texture>();
   for (const auto [entity, position, vertexBuffer, indexBuffer, texture] : group.each())
   {
+    if (!registry.all_of<component::Visible>(entity))
+      continue;
+
     if (boundIndexBuffer != indexBuffer.value)
       gpu::bindIndexBuffer(context, indexBuffer.value);
     if (boundVertexBuffer != vertexBuffer.value)
@@ -34,7 +37,7 @@ void executeRenderLoop(const gpu::RenderContext& context, entt::registry& regist
       .modelTransform = glm::mat4{1.0f},
     };
     SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
-    SDL_DrawGPUIndexedPrimitives(context.renderPass, NUM_INDICES_PER_TILE, 1, 0, 0, 0);
+    SDL_DrawGPUIndexedPrimitives(context.renderPass, TILE_NUM_INDICES, 1, 0, 0, 0);
   }
 }
 } // namespace

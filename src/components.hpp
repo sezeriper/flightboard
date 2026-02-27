@@ -26,5 +26,9 @@ struct Position
   glm::dvec3 value;
 };
 
+struct Visible
+{
+};
+
 } // namespace component
 } // namespace flb

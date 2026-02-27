@@ -70,9 +70,9 @@ add_subdirectory(external/libpng)
 
 # 1. Handle platform-specific naming FIRST so we can use it in BUILD_BYPRODUCTS
 if(MSVC)
-    set(TURBOJPEG_LIB_NAME "turbojpeg-static.lib")
+  set(TURBOJPEG_LIB_NAME "turbojpeg-static.lib")
 else()
-    set(TURBOJPEG_LIB_NAME "libturbojpeg.a")
+  set(TURBOJPEG_LIB_NAME "libturbojpeg.a")
 endif()
 
 # Store the exact path in a variable to keep things clean

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "camera.hpp"
+#include "gpu/allocator.hpp"
 #include "gpu/renderer.hpp"
+#include "tile_manager.hpp"
 #include "time.hpp"
 #include "window.hpp"
 
@@ -24,11 +26,14 @@ public:
 private:
   Window window;
   Renderer renderer;
+  gpu::Allocator allocator;
 
   float mouseSensitivity = 0.006f;
   float keyboardSensitivity = 4.0f;
   float scrollSensitivity = 0.6f;
   FPSCamera camera;
   entt::registry registry;
+
+  TileManager tileManager;
 };
 } // namespace flb

@@ -103,8 +103,8 @@ static void generateTileVertices(
  * The indices define two triangles for each quad in the grid, which will be used for rendering the tile.
  * The provided span should have a size of GRID_RESOLUTION * GRID_RESOLUTION * 6 to accommodate all the indices.
  */
-constexpr std::size_t NUM_INDICES_PER_TILE = GRID_RESOLUTION * GRID_RESOLUTION * 6;
-constexpr std::size_t INDEX_BUFFER_SIZE_PER_TILE = NUM_INDICES_PER_TILE * sizeof(gpu::Index);
+constexpr std::size_t TILE_NUM_INDICES = GRID_RESOLUTION * GRID_RESOLUTION * 6;
+constexpr std::size_t TILE_INDEX_BUFFER_SIZE = TILE_NUM_INDICES * sizeof(gpu::Index);
 static void generateTileIndices(std::span<gpu::Index>& indices)
 {
   std::size_t index = 0;
@@ -136,7 +136,7 @@ static std::vector<glm::dvec3> getTileOrigins(const std::vector<TileCoords>& til
   {
     double coordx = static_cast<double>(coords.x);
     double coordy = static_cast<double>(coords.y);
-    glm::dvec3 tileCenter = tileToECEF(coordx + 0.5, coordy + 0.5, coords.zoom);
+    glm::dvec3 tileCenter = tileToECEF(coords.zoom, coordx + 0.5, coordy + 0.5);
     origins.push_back(tileCenter);
   }
   return origins;

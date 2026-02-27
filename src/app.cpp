@@ -1,61 +1,11 @@
 #include "app.hpp"
-#include "components.hpp"
-#include "tile_generator.hpp"
+#include "math.hpp"
+#include "quadtree.hpp"
+
+#define GLM_ENABLE_EXPERIMENTAL
+#import <glm/gtx/norm.hpp>
 
 using namespace flb;
-
-namespace
-{
-
-void loadTiles(gpu::Device& device, entt::registry& registry)
-{
-  Timer timer("Tile loading");
-  TilesetDescription tilesetDescription{
-    .tileImageSize = 256,
-    .zoomMin = 6,
-    .zoomMax = 6,
-    .zoomRegion{
-      // .min {39.808129, 30.497973},
-      // .max {39.820784, 30.541466},
-      .min{-85.0, -179.0},
-      .max{85.0, 179.0},
-    }};
-
-  const auto tileCoords = getIntersectingTileCoords(tilesetDescription);
-  const auto tileOrigins = getTileOrigins(tileCoords);
-
-  const auto tileIdxBufHandle = device.createIndexBuffer(INDEX_BUFFER_SIZE_PER_TILE);
-  const auto tileIndexBuffer = tileIdxBufHandle.buffer;
-  const auto indexBufferMemory = device.allocateBuffer(tileIdxBufHandle);
-  std::span<gpu::Index> indices(reinterpret_cast<gpu::Index*>(indexBufferMemory.data()), NUM_INDICES_PER_TILE);
-  generateTileIndices(indices);
-
-  registry.group<component::Position, component::VertexBuffer, component::IndexBuffer, component::Texture>();
-
-  for (std::size_t i = 0; i < tileCoords.size(); ++i)
-  {
-    const auto vertexBuffer = device.createVertexBuffer(VERTEX_BUFFER_SIZE_PER_TILE);
-    std::span<std::byte> vertexBufferMemory = device.allocateBuffer(vertexBuffer);
-    std::span<gpu::Vertex> vertices(reinterpret_cast<gpu::Vertex*>(vertexBufferMemory.data()), NUM_VERTICES_PER_TILE);
-    generateTileVertices(tileCoords[i], tileOrigins[i], vertices);
-
-    const auto texture = device.createTexture(tilesetDescription.tileImageSize, tilesetDescription.tileImageSize);
-    std::span<std::byte> memory = device.allocateTexture(texture);
-    const auto tilePath = getTilePath("content/tiles/eskisehir", tileCoords[i]);
-    loadJPG(tilePath, memory);
-
-    auto entity = registry.create();
-    registry.emplace<component::Position>(entity, tileOrigins[i]);
-    registry.emplace<component::VertexBuffer>(entity, vertexBuffer.buffer);
-    registry.emplace<component::IndexBuffer>(entity, tileIndexBuffer);
-    registry.emplace<component::Texture>(entity, texture.texture);
-  }
-
-  device.upload();
-
-  SDL_Log("Loaded %zu tiles", tileCoords.size());
-}
-} // namespace
 
 SDL_AppResult App::init()
 {
@@ -72,14 +22,15 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
-    GeoCoords startCoords{39.811123, 30.528396};
-    auto position = geoToECEF(startCoords, 1'000'000.0);
-    // auto position = map::geoToECEF(origin);
-    camera.up = getSurfaceNormal({39.811123, 30.528396});
-    camera.position = position;
-    camera.speed = 300000.0;
+    allocator.init(renderer.getDevice().getDevice());
 
-    loadTiles(renderer.getDevice(), registry);
+    GeoCoords startCoords{39.811124, 30.528396};
+    // camera.position = geoToECEF(startCoords, 1'000'000.0);
+    camera.position = geoToECEF(startCoords);
+    camera.up = getSurfaceNormal(startCoords);
+    camera.speed = 30000.0;
+
+    tileManager.init(&registry, &allocator);
   }
 
   return SDL_APP_CONTINUE;
@@ -87,7 +38,9 @@ SDL_AppResult App::init()
 
 void App::cleanup()
 {
+  tileManager.cleanup();
   registry.clear();
+  allocator.cleanup();
   renderer.cleanup(window.getWindow());
   window.cleanup();
 }
@@ -128,6 +81,58 @@ SDL_AppResult App::update(float dt)
 {
   const bool* keyStates = SDL_GetKeyboardState(NULL);
   camera.updateKeyboard(dt, keyStates);
+
+  TimePoint currentTime = now();
+  registry.clear<component::Visible>();
+
+  auto cameraPosition = camera.position;
+  {
+    // Timer timer("Quadtree construction and traversal");
+    QuadTree quadtree;
+    {
+      // Timer quadTreeTimer("QuadTree build");
+      constexpr std::uint32_t MAX_DEPTH = 19;
+      quadtree.build(
+        [this, cameraPosition, currentTime](NodeCoords coords)
+        {
+          if (coords.level == MAX_DEPTH)
+            return false;
+
+          const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
+          const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
+          constexpr double cameraRadius = 10'000.0;
+
+          const auto distance2 = glm::distance2(cameraPosition, tileCenter);
+          if (distance2 > (tileRadius * tileRadius) + (cameraRadius * cameraRadius))
+            return false;
+
+          std::array<NodeCoords, 4> children = QuadTree::getChildren(coords);
+          for (auto child : children)
+          {
+            auto entity = tileManager.getTile(child.level, child.x, child.y, currentTime);
+            if (entity == entt::null)
+            {
+              return false;
+            }
+          }
+
+          return true;
+        });
+    }
+    {
+      // Timer traversalTimer("QuadTree traversal");
+      quadtree.traverseLeaves(
+        [this, currentTime](NodeCoords coords)
+        {
+          auto entity = tileManager.getTile(coords.level, coords.x, coords.y, currentTime);
+          registry.emplace<component::Visible>(entity);
+        });
+    }
+
+    allocator.upload();
+
+    // SDL_Log("Quadtree nodes: %zu", quadtree.size());
+  }
 
   return SDL_APP_CONTINUE;
 }

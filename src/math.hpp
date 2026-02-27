@@ -136,7 +136,7 @@ static ECEFCoords geoToECEF(const GeoCoords& geo, double height)
 /**
  * Converts fractional tile coordinates to geographic coordinates (latitude and longitude) in radians.
  */
-static ECEFCoords tileToECEF(double tile_x, double tile_y, std::uint32_t tile_zoom)
+static ECEFCoords tileToECEF(std::uint32_t tile_zoom, double tile_x, double tile_y)
 {
   double n = glm::pow(2.0, tile_zoom);
   double lon = (tile_x / n) * 2.0 * PI - PI;
@@ -156,4 +156,24 @@ static ECEFCoords tileToECEF(double tile_x, double tile_y, std::uint32_t tile_zo
 
   return {x, y, z};
 }
+
+const std::uint32_t NUM_OF_ZOOM_LEVELS = 25;
+consteval double calculateTileDiagonal(std::uint32_t zoom)
+{
+  constexpr double SQRT_2 = 1.4142135623730951;
+  double scale = 1.0 / (1ull << zoom);
+  double tileSizeAtZoom = SEMI_MAJOR * 2.0 * PI * scale;
+  return SQRT_2 * tileSizeAtZoom;
+}
+consteval std::array<double, NUM_OF_ZOOM_LEVELS> calculateTileBoundingSphereRadii()
+{
+  std::array<double, NUM_OF_ZOOM_LEVELS> diagonals{};
+  for (std::uint32_t zoom = 0; zoom < NUM_OF_ZOOM_LEVELS; ++zoom)
+  {
+    diagonals[zoom] = calculateTileDiagonal(zoom) / 2.0;
+  }
+  return diagonals;
+}
+
+constexpr std::array<double, NUM_OF_ZOOM_LEVELS> TILE_BOUNDING_SPHERE_RADII = calculateTileBoundingSphereRadii();
 } // namespace flb
