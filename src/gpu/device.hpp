@@ -24,7 +24,11 @@ public:
 
     device = SDL_CreateGPUDevice(
       SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_METALLIB,
+#ifdef DEBUG
       true,
+#else
+      false,
+#endif
       NULL);
     if (device == NULL)
     {

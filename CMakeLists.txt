@@ -120,8 +120,12 @@ add_executable(flightboard
 )
 add_dependencies(flightboard libjpeg-turbo_ext)
 
+target_compile_definitions(flightboard PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+    $<$<CONFIG:Release>:NDEBUG>
+)
 target_compile_options(flightboard PRIVATE
-    $<$<CONFIG:Release>:-O3 -march=native>
+    $<$<CONFIG:Release>:-O3 -march=native -g -fno-omit-frame-pointer>
 )
 
 target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "texture_manager.hpp"
+
 #include <SDL3/SDL_gpu.h>
 #include <glm/glm.hpp>
 
@@ -24,6 +26,11 @@ struct Texture
 struct Position
 {
   glm::dvec3 value;
+};
+
+struct TextureHandle
+{
+  flb::TextureHandle value;
 };
 
 struct Visible

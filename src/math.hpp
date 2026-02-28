@@ -55,34 +55,34 @@ using ECEFCoords = glm::dvec3;
  */
 static glm::vec3 getSurfaceNormal(const GeoCoords& geo)
 {
-  double latRad = glm::radians(geo.latitude);
-  double lonRad = glm::radians(geo.longitude);
+  const double latRad = glm::radians(geo.latitude);
+  const double lonRad = glm::radians(geo.longitude);
 
-  double sinLat = glm::sin(latRad);
-  double cosLat = glm::cos(latRad);
-  double sinLon = glm::sin(lonRad);
-  double cosLon = glm::cos(lonRad);
+  const double sinLat = glm::sin(latRad);
+  const double cosLat = glm::cos(latRad);
+  const double sinLon = glm::sin(lonRad);
+  const double cosLon = glm::cos(lonRad);
 
-  double n = SEMI_MAJOR_SQUARED * cosLat * cosLat + SEMI_MINOR_SQUARED * sinLat * sinLat;
-  double x = (SEMI_MAJOR_SQUARED * cosLat * cosLon) / n;
-  double y = (SEMI_MAJOR_SQUARED * cosLat * sinLon) / n;
-  double z = (SEMI_MINOR_SQUARED * sinLat) / n;
+  const double n = SEMI_MAJOR_SQUARED * cosLat * cosLat + SEMI_MINOR_SQUARED * sinLat * sinLat;
+  const double x = (SEMI_MAJOR_SQUARED * cosLat * cosLon) / n;
+  const double y = (SEMI_MAJOR_SQUARED * cosLat * sinLon) / n;
+  const double z = (SEMI_MINOR_SQUARED * sinLat) / n;
 
   return glm::normalize(glm::dvec3(x, y, z));
 }
 
 static TileCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zoom)
 {
-  double latitude = glm::clamp(from.latitude, MIN_LATITUDE, MAX_LATITUDE);
-  double longitude = glm::clamp(from.longitude, MIN_LONGITUDE, MAX_LONGITUDE);
+  const double latitude = glm::clamp(from.latitude, MIN_LATITUDE, MAX_LATITUDE);
+  const double longitude = glm::clamp(from.longitude, MIN_LONGITUDE, MAX_LONGITUDE);
 
-  double x = (longitude + 180.0) / 360.0;
-  double sinLat = glm::sin(latitude * PI / 180.0);
-  double y = 0.5 - glm::log((1.0 + sinLat) / (1.0 - sinLat)) / (4.0 * PI);
+  const double x = (longitude + 180.0) / 360.0;
+  const double sinLat = glm::sin(latitude * PI / 180.0);
+  const double y = 0.5 - glm::log((1.0 + sinLat) / (1.0 - sinLat)) / (4.0 * PI);
 
-  double numTiles = glm::pow(2.0, zoom);
-  std::uint32_t tileX = static_cast<std::uint32_t>(glm::floor(x * numTiles));
-  std::uint32_t tileY = static_cast<std::uint32_t>(glm::floor(y * numTiles));
+  const double numTiles = glm::pow(2.0, zoom);
+  const std::uint32_t tileX = static_cast<std::uint32_t>(glm::floor(x * numTiles));
+  const std::uint32_t tileY = static_cast<std::uint32_t>(glm::floor(y * numTiles));
   return {zoom, tileX, tileY};
 }
 
@@ -91,20 +91,20 @@ static TileCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zo
  */
 static ECEFCoords geoToECEF(const GeoCoords& geo)
 {
-  double latRad = glm::radians(geo.latitude);
-  double lonRad = glm::radians(geo.longitude);
+  const double latRad = glm::radians(geo.latitude);
+  const double lonRad = glm::radians(geo.longitude);
 
   constexpr double a = SEMI_MAJOR;
   constexpr double b = SEMI_MINOR;
   constexpr double e2 = 1.0 - (b * b) / (a * a);
 
-  double sinLat = glm::sin(latRad);
-  double cosLat = glm::cos(latRad);
-  double N = a / glm::sqrt(1.0 - e2 * sinLat * sinLat);
+  const double sinLat = glm::sin(latRad);
+  const double cosLat = glm::cos(latRad);
+  const double N = a / glm::sqrt(1.0 - e2 * sinLat * sinLat);
 
-  double x = N * cosLat * glm::cos(lonRad);
-  double y = N * cosLat * glm::sin(lonRad);
-  double z = N * (1.0 - e2) * sinLat;
+  const double x = N * cosLat * glm::cos(lonRad);
+  const double y = N * cosLat * glm::sin(lonRad);
+  const double z = N * (1.0 - e2) * sinLat;
 
   return {x, y, z};
 }
@@ -115,20 +115,20 @@ static ECEFCoords geoToECEF(const GeoCoords& geo)
  */
 static ECEFCoords geoToECEF(const GeoCoords& geo, double height)
 {
-  double latRad = glm::radians(geo.latitude);
-  double lonRad = glm::radians(geo.longitude);
+  const double latRad = glm::radians(geo.latitude);
+  const double lonRad = glm::radians(geo.longitude);
 
   constexpr double a = SEMI_MAJOR;
   constexpr double b = SEMI_MINOR;
   constexpr double e2 = 1.0 - (b * b) / (a * a);
 
-  double sinLat = glm::sin(latRad);
-  double cosLat = glm::cos(latRad);
-  double N = a / glm::sqrt(1.0 - e2 * sinLat * sinLat);
+  const double sinLat = glm::sin(latRad);
+  const double cosLat = glm::cos(latRad);
+  const double N = a / glm::sqrt(1.0 - e2 * sinLat * sinLat);
 
-  double x = (N + height) * cosLat * glm::cos(lonRad);
-  double y = (N + height) * cosLat * glm::sin(lonRad);
-  double z = (N * (1.0 - e2) + height) * sinLat;
+  const double x = (N + height) * cosLat * glm::cos(lonRad);
+  const double y = (N + height) * cosLat * glm::sin(lonRad);
+  const double z = (N * (1.0 - e2) + height) * sinLat;
 
   return {x, y, z};
 }
@@ -138,21 +138,21 @@ static ECEFCoords geoToECEF(const GeoCoords& geo, double height)
  */
 static ECEFCoords tileToECEF(std::uint32_t tile_zoom, double tile_x, double tile_y)
 {
-  double n = glm::pow(2.0, tile_zoom);
-  double lon = (tile_x / n) * 2.0 * PI - PI;
-  double lat = glm::atan(glm::sinh(PI * (1.0 - 2.0 * tile_y / n)));
+  const double n = glm::pow(2.0, tile_zoom);
+  const double lon = (tile_x / n) * 2.0 * PI - PI;
+  const double lat = glm::atan(glm::sinh(PI * (1.0 - 2.0 * tile_y / n)));
 
   constexpr double a = SEMI_MAJOR;
   constexpr double b = SEMI_MINOR;
   constexpr double e2 = 1.0 - (b * b) / (a * a);
 
-  double sin_lat = glm::sin(lat);
-  double cos_lat = glm::cos(lat);
-  double N = a / glm::sqrt(1.0 - e2 * sin_lat * sin_lat);
+  const double sin_lat = glm::sin(lat);
+  const double cos_lat = glm::cos(lat);
+  const double N = a / glm::sqrt(1.0 - e2 * sin_lat * sin_lat);
 
-  double x = N * cos_lat * glm::cos(lon);
-  double y = N * cos_lat * glm::sin(lon);
-  double z = N * (1.0 - e2) * sin_lat;
+  const double x = N * cos_lat * glm::cos(lon);
+  const double y = N * cos_lat * glm::sin(lon);
+  const double z = N * (1.0 - e2) * sin_lat;
 
   return {x, y, z};
 }
@@ -161,8 +161,8 @@ const std::uint32_t NUM_OF_ZOOM_LEVELS = 25;
 consteval double calculateTileDiagonal(std::uint32_t zoom)
 {
   constexpr double SQRT_2 = 1.4142135623730951;
-  double scale = 1.0 / (1ull << zoom);
-  double tileSizeAtZoom = SEMI_MAJOR * 2.0 * PI * scale;
+  const double scale = 1.0 / (1ull << zoom);
+  const double tileSizeAtZoom = SEMI_MAJOR * 2.0 * PI * scale;
   return SQRT_2 * tileSizeAtZoom;
 }
 consteval std::array<double, NUM_OF_ZOOM_LEVELS> calculateTileBoundingSphereRadii()

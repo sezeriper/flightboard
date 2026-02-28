@@ -39,9 +39,9 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
 }
 
 /**
- * Read jpg files into Texture struct using turboJPEG.
+ * Read jpg files into a contigous byte array using turboJPEG.
  */
-static void loadJPG(std::span<std::byte> fileBuf, std::span<std::byte> outTexture)
+static void loadJPG(std::span<std::byte> fileBuf, const std::span<std::byte> outTexture)
 {
   tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
   if (handle == NULL)

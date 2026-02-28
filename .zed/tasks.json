@@ -1,0 +1,25 @@
+// Project tasks configuration. See https://zed.dev/docs/tasks for documentation.
+//
+// Example:
+[
+  {
+    "label": "Configure",
+    "command": "cmake -B build -G \"Ninja Multi-Config\"",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "no_focus",
+    "hide": "on_success",
+    "shell": "system",
+    "show_command": true,
+  },
+  {
+    "label": "Release",
+    "command": "cmake --build build --config Release && build/Release/flightboard",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "no_focus",
+    "hide": "on_success",
+    "shell": "system",
+    "show_command": true,
+  }
+]

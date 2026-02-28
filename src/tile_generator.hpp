@@ -50,48 +50,57 @@ constexpr gpu::Index GRID_RESOLUTION = 16;
 constexpr std::size_t NUM_VERTICES_PER_TILE = (GRID_RESOLUTION + 1) * (GRID_RESOLUTION + 1);
 constexpr std::size_t VERTEX_BUFFER_SIZE_PER_TILE = NUM_VERTICES_PER_TILE * sizeof(gpu::Vertex);
 static void generateTileVertices(
-  const TileCoords& coords, const glm::dvec3& tileCenter, std::span<gpu::Vertex>& vertices)
+  const TileCoords childTile, const TileCoords parentTile, const ECEFCoords tileCenter, std::span<gpu::Vertex> vertices)
 {
-  double coordx = static_cast<double>(coords.x);
-  double coordy = static_cast<double>(coords.y);
+  const double coordx = static_cast<double>(childTile.x);
+  const double coordy = static_cast<double>(childTile.y);
 
-  double n = glm::pow(2.0, coords.zoom);
+  const double n = glm::pow(2.0, childTile.zoom);
   constexpr double a = SEMI_MAJOR;
   constexpr double b = SEMI_MINOR;
   constexpr double e2 = 1.0 - (b * b) / (a * a);
 
+  // If no fallback occurred, levelDiff is 0, scale is 1.0, and offsets are 0.0
+  const std::uint32_t levelDiff = childTile.zoom - parentTile.zoom;
+  const double uvScale = 1.0 / static_cast<double>(1 << levelDiff);
+  const double uvOffsetX = static_cast<double>(childTile.x - (parentTile.x << levelDiff)) * uvScale;
+  const double uvOffsetY = static_cast<double>(childTile.y - (parentTile.y << levelDiff)) * uvScale;
+
   for (gpu::Index i = 0; i <= GRID_RESOLUTION; ++i)
   {
-    double v = static_cast<double>(i) / GRID_RESOLUTION;
-    double tile_y = coordy + v;
+    const double v = static_cast<double>(i) / GRID_RESOLUTION;
+    const double tile_y = coordy + v;
 
-    double lat = glm::atan(glm::sinh(PI * (1.0 - 2.0 * tile_y / n)));
-    double sin_lat = glm::sin(lat);
-    double cos_lat = glm::cos(lat);
-    double N = a / glm::sqrt(1.0 - e2 * sin_lat * sin_lat);
-    double z = N * (1.0 - e2) * sin_lat;
+    const double lat = glm::atan(glm::sinh(PI * (1.0 - 2.0 * tile_y / n)));
+    const double sin_lat = glm::sin(lat);
+    const double cos_lat = glm::cos(lat);
+    const double N = a / glm::sqrt(1.0 - e2 * sin_lat * sin_lat);
+    const double z = N * (1.0 - e2) * sin_lat;
 
     for (gpu::Index j = 0; j <= GRID_RESOLUTION; ++j)
     {
-      double u = static_cast<double>(j) / GRID_RESOLUTION;
-      double tile_x = coordx + u;
+      const double u = static_cast<double>(j) / GRID_RESOLUTION;
+      const double tile_x = coordx + u;
 
-      double lon = (tile_x / n) * 2.0 * PI - PI;
-      double x = N * cos_lat * glm::cos(lon);
-      double y = N * cos_lat * glm::sin(lon);
+      const double lon = (tile_x / n) * 2.0 * PI - PI;
+      const double x = N * cos_lat * glm::cos(lon);
+      const double y = N * cos_lat * glm::sin(lon);
 
-      glm::dvec3 posDouble{x, y, z};
-      glm::dvec3 localPosDouble = posDouble - tileCenter;
-      glm::vec3 position = glm::vec3(localPosDouble);
+      const glm::dvec3 posDouble{x, y, z};
+      const glm::dvec3 localPosDouble = posDouble - tileCenter;
+      const glm::vec3 position = glm::vec3(localPosDouble);
 
-      glm::vec3 normal = glm::normalize(glm::dvec3(
+      const glm::vec3 normal = glm::normalize(glm::dvec3(
         posDouble.x / SEMI_MAJOR_SQUARED, posDouble.y / SEMI_MAJOR_SQUARED, posDouble.z / SEMI_MINOR_SQUARED));
 
-      gpu::Vertex vertex{
+      const float finalU = u * uvScale + uvOffsetX;
+      const float finalV = v * uvScale + uvOffsetY;
+
+      const gpu::Vertex vertex{
         .position = position,
         .normal = normal,
         .color = glm::vec3{1.0f},
-        .uv = glm::vec2{u, v},
+        .uv = glm::vec2{finalU, finalV},
       };
       vertices[i * (GRID_RESOLUTION + 1) + j] = vertex;
     }

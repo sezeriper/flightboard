@@ -100,21 +100,11 @@ SDL_AppResult App::update(float dt)
 
           const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
           const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
-          constexpr double cameraRadius = 10'000.0;
+          constexpr double cameraRadius = 1'000.0;
 
           const auto distance2 = glm::distance2(cameraPosition, tileCenter);
           if (distance2 > (tileRadius * tileRadius) + (cameraRadius * cameraRadius))
             return false;
-
-          std::array<NodeCoords, 4> children = QuadTree::getChildren(coords);
-          for (auto child : children)
-          {
-            auto entity = tileManager.getTile(child.level, child.x, child.y, currentTime);
-            if (entity == entt::null)
-            {
-              return false;
-            }
-          }
 
           return true;
         });
@@ -124,10 +114,17 @@ SDL_AppResult App::update(float dt)
       quadtree.traverseLeaves(
         [this, currentTime](NodeCoords coords)
         {
-          auto entity = tileManager.getTile(coords.level, coords.x, coords.y, currentTime);
+          auto entity = tileManager.getOrCreateTile(coords.level, coords.x, coords.y, currentTime);
+          if (entity == entt::null)
+            return;
           registry.emplace<component::Visible>(entity);
         });
     }
+
+    SDL_Log("Cache hit count: %zu, Collision count: %zu", tileManager.cacheHitCount, tileManager.collisionCount);
+    tileManager.cacheHitCount = 0;
+    tileManager.collisionCount = 0;
+    SDL_Log("Total tiles: %zu", registry.view<component::Position>().size());
 
     allocator.upload();
 
