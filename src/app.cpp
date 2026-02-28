@@ -90,7 +90,7 @@ SDL_AppResult App::update(float dt)
     // Timer timer("Quadtree construction and traversal");
     QuadTree quadtree;
     {
-      // Timer quadTreeTimer("QuadTree build");
+      Timer quadTreeTimer("QuadTree build");
       constexpr std::uint32_t MAX_DEPTH = 19;
       quadtree.build(
         [this, cameraPosition, currentTime](NodeCoords coords)
@@ -110,7 +110,7 @@ SDL_AppResult App::update(float dt)
         });
     }
     {
-      // Timer traversalTimer("QuadTree traversal");
+      Timer traversalTimer("QuadTree traversal");
       quadtree.traverseLeaves(
         [this, currentTime](NodeCoords coords)
         {
@@ -121,14 +121,7 @@ SDL_AppResult App::update(float dt)
         });
     }
 
-    SDL_Log("Cache hit count: %zu, Collision count: %zu", tileManager.cacheHitCount, tileManager.collisionCount);
-    tileManager.cacheHitCount = 0;
-    tileManager.collisionCount = 0;
-    SDL_Log("Total tiles: %zu", registry.view<component::Position>().size());
-
     allocator.upload();
-
-    // SDL_Log("Quadtree nodes: %zu", quadtree.size());
   }
 
   return SDL_APP_CONTINUE;

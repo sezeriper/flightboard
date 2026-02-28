@@ -17,6 +17,9 @@ public:
       SDL_Log("CreateWindow failed %s", SDL_GetError());
       return SDL_APP_FAILURE;
     }
+
+    SDL_SetWindowRelativeMouseMode(window, true);
+
     return SDL_APP_CONTINUE;
   }
 

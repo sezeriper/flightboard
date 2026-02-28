@@ -63,7 +63,6 @@ public:
       // cache hit
       if (slot.quadKey == quadKey)
       {
-        ++cacheHitCount;
         slot.lastUsed = currentTime;
         return slot.entity;
       }
@@ -73,8 +72,6 @@ public:
         insertIndex = probeIndex;
         break;
       }
-
-      ++collisionCount;
 
       if (slot.lastUsed < oldestUsage)
       {
@@ -99,10 +96,6 @@ public:
     targetSlot.entity = tile;
     return targetSlot.entity;
   }
-
-  // for debug purposes
-  std::uint64_t cacheHitCount = 0;
-  std::uint64_t collisionCount = 0;
 
 private:
   static constexpr std::uint64_t MASK = CAPACITY - 1;
