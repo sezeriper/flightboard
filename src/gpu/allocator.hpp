@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 
+#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -31,16 +32,6 @@ public:
 
   void cleanup()
   {
-    // for (SDL_GPUBuffer* buffer : buffersToRelease)
-    // {
-    //   SDL_ReleaseGPUBuffer(device, buffer);
-    // }
-
-    // for (SDL_GPUTexture* texture : texturesToRelease)
-    // {
-    //   SDL_ReleaseGPUTexture(device, texture);
-    // }
-
     for (const auto& chunk : transferChunks)
     {
       SDL_UnmapGPUTransferBuffer(device, chunk.transferBuffer);
@@ -55,7 +46,7 @@ public:
     if (span.empty())
       return {};
 
-    pendingBufferCopies.emplace_back(destinationBuffer, activeTransferChunkIndex, allocOffset);
+    pendingBufferCopies.emplace_back(destinationBuffer, activeChunkIndex, allocOffset);
 
     return span;
   }
@@ -67,7 +58,7 @@ public:
     if (span.empty())
       return {};
 
-    pendingTextureCopies.emplace_back(destinationTexture, activeTransferChunkIndex, allocOffset);
+    pendingTextureCopies.emplace_back(destinationTexture, activeChunkIndex, allocOffset);
 
     return span;
   }
@@ -119,15 +110,7 @@ public:
     SDL_EndGPUCopyPass(copyPass);
     SDL_SubmitGPUCommandBuffer(commandBuffer);
 
-    // Cleanup transfer buffers after upload
-    for (const auto& chunk : transferChunks)
-    {
-      SDL_UnmapGPUTransferBuffer(device, chunk.transferBuffer);
-      SDL_ReleaseGPUTransferBuffer(device, chunk.transferBuffer);
-    }
-    transferChunks.clear();
-    activeTransferChunkIndex = 0;
-
+    activeChunkIndex = -1;
     availableMemorySize = 0;
     currentOffset = 0;
     pendingBufferCopies.clear();
@@ -191,21 +174,34 @@ public:
   }
 
   /**
-   * The buffer to be released must not be present in any pending copy operations, otherwise it will probably cause a
-   * crash. It is the caller's responsibility to ensure this.
+   * Releases the buffer and safely removes it from any pending copy operations.
    */
-  void releaseBuffer(SDL_GPUBuffer* buffer) const { SDL_ReleaseGPUBuffer(device, buffer); }
+  void releaseBuffer(SDL_GPUBuffer* buffer)
+  {
+    // TODO: Use a handle instead of raw pointers to avoid this kind of issues. This is a temporary solution to prevent
+    // crashes when a buffer is released while it's still pending for copy.
+    std::erase_if(
+      pendingBufferCopies, [buffer](const PendingBufferCopy& copy) { return copy.destinationBuffer.buffer == buffer; });
+    SDL_ReleaseGPUBuffer(device, buffer);
+  }
 
   /**
-   * The texture to be released must not be present in any pending copy operations, otherwise it will probably cause a
-   * crash. It is the caller's responsibility to ensure this.
+   * Releases the texture and safely removes it from any pending copy operations.
    */
-  void releaseTexture(SDL_GPUTexture* texture) const { SDL_ReleaseGPUTexture(device, texture); }
+  void releaseTexture(SDL_GPUTexture* texture)
+  {
+    // TODO: Use a handle instead of raw pointers to avoid this kind of issues. This is a temporary solution to prevent
+    // crashes when a texture is released while it's still pending for copy.
+    std::erase_if(
+      pendingTextureCopies,
+      [texture](const PendingTextureCopy& copy) { return copy.destinationTexture.texture == texture; });
+    SDL_ReleaseGPUTexture(device, texture);
+  }
 
 private:
   SDL_GPUDevice* device = NULL;
 
-  const Uint32 TRANSFER_BUFFER_ALLOCATION_SIZE = 1 * 1024 * 1024 * 1024;
+  static constexpr Uint32 TRANSFER_BUFFER_ALLOCATION_SIZE = 1 * 1024 * 1024 * 1024;
   Uint32 availableMemorySize = 0;
   Uint32 currentOffset = 0;
 
@@ -213,9 +209,10 @@ private:
   {
     SDL_GPUTransferBuffer* transferBuffer;
     std::byte* mappedMemory;
+    Uint32 capacity;
   };
   std::vector<TransferChunk> transferChunks;
-  std::size_t activeTransferChunkIndex = 0;
+  std::int32_t activeChunkIndex = -1;
 
   struct PendingBufferCopy
   {
@@ -233,32 +230,35 @@ private:
   };
   std::vector<PendingTextureCopy> pendingTextureCopies;
 
-  // std::vector<SDL_GPUBuffer*> buffersToRelease;
-  // std::vector<SDL_GPUTexture*> texturesToRelease;
-
-  SDL_AppResult addTransferChunk()
+  SDL_AppResult getOrCreateChunk()
   {
-    SDL_GPUTransferBufferCreateInfo transferBufCreateInfo{
-      .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-      .size = TRANSFER_BUFFER_ALLOCATION_SIZE,
-    };
+    ++activeChunkIndex;
 
-    auto transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferBufCreateInfo);
-    if (transferBuffer == NULL)
+    // not enough transfer buffers so add one
+    if (activeChunkIndex == transferChunks.size())
     {
-      SDL_Log("CreateGPUTransferBuffer failed: %s", SDL_GetError());
-      return SDL_APP_FAILURE;
+      SDL_GPUTransferBufferCreateInfo transferBufCreateInfo{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = TRANSFER_BUFFER_ALLOCATION_SIZE,
+      };
+
+      auto transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferBufCreateInfo);
+      if (transferBuffer == NULL)
+      {
+        SDL_Log("CreateGPUTransferBuffer failed: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+      }
+      transferChunks.emplace_back(transferBuffer, nullptr, TRANSFER_BUFFER_ALLOCATION_SIZE);
     }
 
-    auto mappedMemory = static_cast<std::byte*>(SDL_MapGPUTransferBuffer(device, transferBuffer, false));
-    if (mappedMemory == NULL)
+    auto& chunk = transferChunks[activeChunkIndex];
+    chunk.mappedMemory = static_cast<std::byte*>(SDL_MapGPUTransferBuffer(device, chunk.transferBuffer, true));
+    if (chunk.mappedMemory == NULL)
     {
       SDL_Log("MapGPUTransferBuffer failed: %s", SDL_GetError());
       return SDL_APP_FAILURE;
     }
 
-    activeTransferChunkIndex = transferChunks.size();
-    transferChunks.emplace_back(transferBuffer, mappedMemory);
     currentOffset = 0;
     availableMemorySize = TRANSFER_BUFFER_ALLOCATION_SIZE;
 
@@ -267,9 +267,9 @@ private:
 
   std::span<std::byte> allocateRaw(Uint32 size, Uint32& outAllocatedOffset)
   {
-    if (size > availableMemorySize)
+    if (size > availableMemorySize || activeChunkIndex == -1)
     {
-      SDL_AppResult result = addTransferChunk();
+      SDL_AppResult result = getOrCreateChunk();
       if (result == SDL_APP_FAILURE)
         return {};
     }
@@ -278,7 +278,7 @@ private:
     currentOffset += size;
     availableMemorySize -= size;
 
-    return std::span<std::byte>(transferChunks[activeTransferChunkIndex].mappedMemory + outAllocatedOffset, size);
+    return std::span<std::byte>(transferChunks[activeChunkIndex].mappedMemory + outAllocatedOffset, size);
   }
 };
 } // namespace gpu
