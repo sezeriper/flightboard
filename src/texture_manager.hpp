@@ -21,7 +21,9 @@ struct TextureHandle
 class TextureManager
 {
 public:
-  TextureHandle allocate(gpu::Allocator* allocator, int width, int height)
+  void init(gpu::Allocator* allocator) { this->allocator = allocator; }
+
+  TextureHandle allocate(int width, int height)
   {
     std::uint32_t index = getFreeSlot();
     std::uint32_t version = ++globalVersionCounter;
@@ -64,7 +66,7 @@ public:
     return slot.textureHandle;
   }
 
-  void destroy(TextureHandle handle, gpu::Allocator* allocator)
+  void destroy(TextureHandle handle)
   {
     // If the magic number doesn't match, it was already destroyed. Safe exit!
     if (!handle.isValid() || handle.index >= pool.size())
@@ -85,6 +87,8 @@ public:
   }
 
 private:
+  gpu::Allocator* allocator = nullptr;
+
   struct Slot
   {
     gpu::TextureHandle textureHandle{NULL, 0, 0, 0};

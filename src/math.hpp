@@ -1,5 +1,7 @@
 #pragma once
 
+#include "quadtree.hpp"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <numbers>
@@ -15,13 +17,6 @@ constexpr double SEMI_MAJOR = 6378137.0;
 constexpr double SEMI_MINOR = 6356752.3142451793;
 constexpr double SEMI_MAJOR_SQUARED = SEMI_MAJOR * SEMI_MAJOR;
 constexpr double SEMI_MINOR_SQUARED = SEMI_MINOR * SEMI_MINOR;
-
-struct TileCoords
-{
-  std::uint32_t zoom;
-  std::uint32_t x;
-  std::uint32_t y;
-};
 
 struct GeoCoords
 {
@@ -71,7 +66,7 @@ static glm::vec3 getSurfaceNormal(const GeoCoords& geo)
   return glm::normalize(glm::dvec3(x, y, z));
 }
 
-static TileCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zoom)
+static NodeCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zoom)
 {
   const double latitude = glm::clamp(from.latitude, MIN_LATITUDE, MAX_LATITUDE);
   const double longitude = glm::clamp(from.longitude, MIN_LONGITUDE, MAX_LONGITUDE);

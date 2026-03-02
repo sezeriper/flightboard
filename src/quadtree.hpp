@@ -1,13 +1,25 @@
+/**
+ * A quadtree class specialized for generating lod for tile maps.
+ */
+
 #pragma once
 
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <limits>
 #include <vector>
 
-namespace
+namespace flb
 {
+struct NodeCoords
+{
+  std::uint32_t level;
+  std::uint32_t x;
+  std::uint32_t y;
+
+  constexpr bool operator==(const NodeCoords& other) const = default;
+};
+
 using NodeID = std::uint32_t;
 constexpr NodeID NULL_NODE = std::numeric_limits<NodeID>::max();
 struct Node
@@ -15,30 +27,18 @@ struct Node
   std::array<NodeID, 4> children{NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE};
 };
 
-struct NodeCoords
-{
-  std::uint32_t level;
-  std::uint32_t x;
-  std::uint32_t y;
-};
-
 template <typename F>
 concept ShouldSplitFunction = std::invocable<F, NodeCoords> && std::same_as<std::invoke_result_t<F, NodeCoords>, bool>;
 
 template <typename F>
 concept ProcessLeafeFunction = std::invocable<F, NodeCoords> && std::same_as<std::invoke_result_t<F, NodeCoords>, void>;
-} // namespace
 
-namespace flb
-{
-/**
- * A quadtree class specialized for generating lod for tile maps.
- */
 class QuadTree
 {
 public:
   std::size_t size() const { return nodes.size(); }
   void reserve(std::size_t size) { nodes.reserve(size); }
+
   void clear()
   {
     root = NULL_NODE;

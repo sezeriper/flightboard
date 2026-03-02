@@ -2,8 +2,9 @@
 #include "math.hpp"
 #include "quadtree.hpp"
 
+#include <glm/ext/vector_common.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
-#import <glm/gtx/norm.hpp>
+#include <glm/gtx/norm.hpp>
 
 using namespace flb;
 
@@ -28,7 +29,7 @@ SDL_AppResult App::init()
     // camera.position = geoToECEF(startCoords, 1'000'000.0);
     camera.position = geoToECEF(startCoords);
     camera.up = getSurfaceNormal(startCoords);
-    camera.speed = 30000.0;
+    camera.speed = 3000.0;
 
     tileManager.init(&registry, &allocator);
   }
@@ -74,6 +75,20 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
     return SDL_APP_CONTINUE;
   }
 
+  if (event->type == SDL_EVENT_MOUSE_WHEEL)
+  {
+    const auto scrollAmount = glm::abs(event->wheel.y);
+    const auto direction = event->wheel.y > 0.0f ? 1.0f : -1.0f;
+
+    if (direction > 0.0f)
+      camera.speed *= scrollAmount * 5.0f;
+    else
+      camera.speed /= scrollAmount * 5.0f;
+
+    camera.speed = glm::max(camera.speed, 10.0);
+    return SDL_APP_CONTINUE;
+  }
+
   return SDL_APP_CONTINUE;
 }
 
@@ -90,7 +105,7 @@ SDL_AppResult App::update(float dt)
     // Timer timer("Quadtree construction and traversal");
     QuadTree quadtree;
     {
-      Timer quadTreeTimer("QuadTree build");
+      // Timer quadTreeTimer("QuadTree build");
       constexpr std::uint32_t MAX_DEPTH = 19;
       quadtree.build(
         [this, cameraPosition, currentTime](NodeCoords coords)
@@ -100,7 +115,7 @@ SDL_AppResult App::update(float dt)
 
           const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
           const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
-          constexpr double cameraRadius = 1'000.0;
+          constexpr double cameraRadius = 0.0;
 
           const auto distance2 = glm::distance2(cameraPosition, tileCenter);
           if (distance2 > (tileRadius * tileRadius) + (cameraRadius * cameraRadius))
@@ -110,11 +125,11 @@ SDL_AppResult App::update(float dt)
         });
     }
     {
-      Timer traversalTimer("QuadTree traversal");
+      // Timer traversalTimer("QuadTree traversal");
       quadtree.traverseLeaves(
         [this, currentTime](NodeCoords coords)
         {
-          auto entity = tileManager.getOrCreateTile(coords.level, coords.x, coords.y, currentTime);
+          auto entity = tileManager.getOrCreateTile(coords, currentTime);
           if (entity == entt::null)
             return;
           registry.emplace<component::Visible>(entity);

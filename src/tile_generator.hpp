@@ -9,14 +9,14 @@
 namespace flb
 {
 
-static std::vector<TileCoords> getIntersectingTileCoords(const TilesetDescription& description)
+static std::vector<NodeCoords> getIntersectingTileCoords(const TilesetDescription& description)
 {
-  std::vector<TileCoords> coords;
+  std::vector<NodeCoords> coords;
   BBOX bounds = description.zoomRegion;
   for (std::uint32_t zoom = description.zoomMin; zoom <= description.zoomMax; ++zoom)
   {
-    TileCoords sw = geoToTileCoords(bounds.min, zoom);
-    TileCoords ne = geoToTileCoords(bounds.max, zoom);
+    NodeCoords sw = geoToTileCoords(bounds.min, zoom);
+    NodeCoords ne = geoToTileCoords(bounds.max, zoom);
 
     auto minx = sw.x;
     auto miny = ne.y;
@@ -35,9 +35,9 @@ static std::vector<TileCoords> getIntersectingTileCoords(const TilesetDescriptio
   return coords;
 }
 
-static std::filesystem::path getTilePath(const std::filesystem::path& root, const TileCoords& coords)
+static std::filesystem::path getTilePath(const std::filesystem::path& root, const NodeCoords& coords)
 {
-  return root / std::to_string(coords.zoom) / std::to_string(coords.x) / (std::to_string(coords.y) + ".png");
+  return root / std::to_string(coords.level) / std::to_string(coords.x) / (std::to_string(coords.y) + ".png");
 }
 
 /**
@@ -50,18 +50,18 @@ constexpr gpu::Index GRID_RESOLUTION = 16;
 constexpr std::size_t NUM_VERTICES_PER_TILE = (GRID_RESOLUTION + 1) * (GRID_RESOLUTION + 1);
 constexpr std::size_t VERTEX_BUFFER_SIZE_PER_TILE = NUM_VERTICES_PER_TILE * sizeof(gpu::Vertex);
 static void generateTileVertices(
-  const TileCoords childTile, const TileCoords parentTile, const ECEFCoords tileCenter, std::span<gpu::Vertex> vertices)
+  const NodeCoords childTile, const NodeCoords parentTile, const ECEFCoords tileCenter, std::span<gpu::Vertex> vertices)
 {
   const double coordx = static_cast<double>(childTile.x);
   const double coordy = static_cast<double>(childTile.y);
 
-  const double n = glm::pow(2.0, childTile.zoom);
+  const double n = glm::pow(2.0, childTile.level);
   constexpr double a = SEMI_MAJOR;
   constexpr double b = SEMI_MINOR;
   constexpr double e2 = 1.0 - (b * b) / (a * a);
 
   // If no fallback occurred, levelDiff is 0, scale is 1.0, and offsets are 0.0
-  const std::uint32_t levelDiff = childTile.zoom - parentTile.zoom;
+  const std::uint32_t levelDiff = childTile.level - parentTile.level;
   const double uvScale = 1.0 / static_cast<double>(1 << levelDiff);
   const double uvOffsetX = static_cast<double>(childTile.x - (parentTile.x << levelDiff)) * uvScale;
   const double uvOffsetY = static_cast<double>(childTile.y - (parentTile.y << levelDiff)) * uvScale;
@@ -137,7 +137,7 @@ static void generateTileIndices(std::span<gpu::Index>& indices)
   }
 }
 
-static std::vector<glm::dvec3> getTileOrigins(const std::vector<TileCoords>& tileCoords)
+static std::vector<glm::dvec3> getTileOrigins(const std::vector<NodeCoords>& tileCoords)
 {
   std::vector<glm::dvec3> origins;
   origins.reserve(tileCoords.size());
@@ -145,7 +145,7 @@ static std::vector<glm::dvec3> getTileOrigins(const std::vector<TileCoords>& til
   {
     double coordx = static_cast<double>(coords.x);
     double coordy = static_cast<double>(coords.y);
-    glm::dvec3 tileCenter = tileToECEF(coords.zoom, coordx + 0.5, coordy + 0.5);
+    glm::dvec3 tileCenter = tileToECEF(coords.level, coordx + 0.5, coordy + 0.5);
     origins.push_back(tileCenter);
   }
   return origins;
