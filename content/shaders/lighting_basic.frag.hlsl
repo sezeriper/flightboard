@@ -11,7 +11,8 @@ struct PixelInput
 
 float4 main(PixelInput input) : SV_Target0
 {
-    float4 albedo = AlbedoTexture.Sample(AlbedoSampler, input.UV);
+    float4 sample = AlbedoTexture.Sample(AlbedoSampler, input.UV);
+    float3 albedo = pow(sample.rgb, 1.0 / 2.2);
 
     float3 normal = normalize(input.Normal);
     // Hard-coded light direction (pointing towards the light, i.e., top-right-front)
@@ -26,7 +27,7 @@ float4 main(PixelInput input) : SV_Target0
     float3 diffuse = max(dot(normal, lightDir), 0.0f) * lightColor;
 
     // Combine
-    float3 result = (ambient + diffuse) * albedo.rgb;
+    float3 result = (ambient + diffuse) * albedo;
 
-    return float4(result, albedo.a);
+    return float4(result, sample.a);
 }
