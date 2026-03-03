@@ -30,6 +30,8 @@ namespace flb
 class Camera
 {
 public:
+  glm::dvec3 position{0.0};
+
   float fov{75.0f};
   float aspect{1.0f};
   float near{1.0f};
@@ -38,7 +40,6 @@ public:
   float pitch{0.0f};
   glm::vec3 up{0.0f, 0.0f, 1.0f}; // Default to ECEF Z up
 
-protected:
   glm::mat4 calcProjMat() const { return createInfiniteReversedZ(glm::radians(fov), aspect, near); }
 
   glm::vec3 getFront() const
@@ -71,8 +72,6 @@ protected:
   glm::vec3 getRight() const { return glm::normalize(glm::cross(getFront(), up)); }
 };
 
-static void lo() {};
-
 /**
  * Designed to be used with floating origin where world is rendered relative to
  * the camera's position.
@@ -80,7 +79,6 @@ static void lo() {};
 class FPSCamera: public Camera
 {
 public:
-  glm::dvec3 position{0.0};
   double speed = 100.0;
   float sensitivity = 0.006f;
 
@@ -123,7 +121,6 @@ private:
 class OrbitalCamera: public Camera
 {
 public:
-  glm::dvec3 center{0.0f};
   float distance{10.0f};
 
   glm::mat4 getViewProjMat() const { return calcProjMat() * calcViewMat(); }

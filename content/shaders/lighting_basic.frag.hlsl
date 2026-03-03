@@ -24,10 +24,10 @@ float4 main(PixelInput input) : SV_Target0
     float3 ambient = ambientStrength * lightColor;
 
     // Diffuse component
-    float3 diffuse = max(dot(normal, lightDir), 0.0f) * lightColor;
+    float3 diffuse = max(dot(normal, lightDir), 0.0) * lightColor;
 
     // Combine
     float3 result = (ambient + diffuse) * albedo;
 
-    return float4(result, sample.a);
+    return float4(result, 1.0);
 }

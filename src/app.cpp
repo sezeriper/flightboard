@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "culling.hpp"
 #include "math.hpp"
 #include "quadtree.hpp"
 
@@ -100,7 +101,8 @@ SDL_AppResult App::update(float dt)
   TimePoint currentTime = now();
   registry.clear<component::Visible>();
 
-  auto cameraPosition = camera.position;
+  const auto cameraPosition = camera.position;
+  const auto frustum = createFrustum(camera);
   {
     // Timer timer("Quadtree construction and traversal");
     QuadTree quadtree;
@@ -108,17 +110,19 @@ SDL_AppResult App::update(float dt)
       // Timer quadTreeTimer("QuadTree build");
       constexpr std::uint32_t MAX_DEPTH = 19;
       quadtree.build(
-        [this, cameraPosition, currentTime](NodeCoords coords)
+        [cameraPosition, frustum](NodeCoords coords)
         {
           if (coords.level == MAX_DEPTH)
             return false;
 
           const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
           const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
-          constexpr double cameraRadius = 0.0;
+
+          if (isOccluded(cameraPosition, frustum, {tileCenter, tileRadius}))
+            return false;
 
           const auto distance2 = glm::distance2(cameraPosition, tileCenter);
-          if (distance2 > (tileRadius * tileRadius) + (cameraRadius * cameraRadius))
+          if (distance2 > tileRadius * tileRadius)
             return false;
 
           return true;
@@ -127,11 +131,19 @@ SDL_AppResult App::update(float dt)
     {
       // Timer traversalTimer("QuadTree traversal");
       quadtree.traverseLeaves(
-        [this, currentTime](NodeCoords coords)
+        [this, cameraPosition, frustum, currentTime](NodeCoords coords)
         {
+          const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
+          const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
+
+          // Re-check visibility here so culled branches don't get rendered
+          if (isOccluded(cameraPosition, frustum, {tileCenter, tileRadius}))
+            return;
+
           auto entity = tileManager.getOrCreateTile(coords, currentTime);
           if (entity == entt::null)
             return;
+
           registry.emplace<component::Visible>(entity);
         });
     }

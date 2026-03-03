@@ -95,6 +95,7 @@ ExternalProject_Add(
         -DENABLE_SHARED=OFF  # Optional: disable shared library if you only want static
         -DENABLE_STATIC=ON   # Optional: explicitly enable static library
         -DWITH_TURBOJPEG=ON  # Optional: includes the TurboJPEG API library
+        -DWITH_SIMD=ON
         -DCMAKE_INSTALL_LIBDIR=lib
 
     # We don't need to specify custom build/install commands because
@@ -128,7 +129,7 @@ target_compile_options(flightboard PRIVATE
     $<$<CONFIG:Release>:-O3 -march=native -g -fno-omit-frame-pointer>
 )
 
-target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)
+# target_compile_definitions(flightboard PRIVATE GLM_FORCE_INTRINSICS)
 
 target_include_directories(flightboard PRIVATE "${LIBJPEG_INSTALL_DIR}/include" "src")
 

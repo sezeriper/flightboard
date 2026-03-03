@@ -1,5 +1,7 @@
 #pragma once
 
+// #include "time.hpp"
+
 #include <turbojpeg.h>
 
 #include <png.h>
@@ -43,6 +45,7 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
  */
 static void loadJPG(std::span<std::byte> fileBuf, const std::span<std::byte> outTexture)
 {
+  // Timer timer("JPEG decompression");
   tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
   if (handle == NULL)
   {
@@ -63,7 +66,7 @@ static void loadJPG(std::span<std::byte> fileBuf, const std::span<std::byte> out
     fileBuf.size(),
     reinterpret_cast<unsigned char*>(outTexture.data()),
     0,
-    TJPF_RGBA);
+    TJPF_RGBX);
   if (result != 0)
   {
     SDL_Log("tj3Decompress8 failed: %s", tj3GetErrorStr(handle));
