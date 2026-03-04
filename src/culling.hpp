@@ -67,7 +67,7 @@ struct BoundingSphere
   double radius;
 };
 
-static constexpr bool isOccludedByFrustum(const Frustum& frustum, const BoundingSphere& sphere)
+static constexpr bool isOccludedByFrustum(const Frustum frustum, const BoundingSphere sphere)
 {
   for (const Plane& plane : frustum)
   {
@@ -89,18 +89,9 @@ static constexpr glm::dvec3 invRadii = 1.0 / radii;
 static constexpr glm::dvec3 scaleToUnitSphere(const glm::dvec3& point) { return point * invRadii; }
 } // namespace Ellipsoid
 
-static constexpr glm::dvec3 computeScaledOcclusionPoint(const BoundingSphere& boundingSphere)
-{
-  const auto invRadiiSquared = Ellipsoid::invRadii * Ellipsoid::invRadii;
-  const auto surfaceNormal = glm::normalize(boundingSphere.position * invRadiiSquared);
-  const auto occlusionPointEcef = boundingSphere.position + (surfaceNormal * boundingSphere.radius);
-  return Ellipsoid::scaleToUnitSphere(occlusionPointEcef);
-}
-
-static constexpr bool isOcculudedByHorizon(const glm::dvec3& cameraPosition, const BoundingSphere& boundingSphere)
+static constexpr bool isOccludedByHorizon(const glm::dvec3& cameraPosition, const glm::dvec3& occlusionPoint)
 {
   const auto cameraPositionScaled = Ellipsoid::scaleToUnitSphere(cameraPosition);
-  const auto occlusionPoint = computeScaledOcclusionPoint(boundingSphere);
 
   const auto vt = occlusionPoint - cameraPositionScaled;
   const auto vtDotVc = -glm::dot(vt, cameraPositionScaled);
@@ -119,9 +110,19 @@ static constexpr bool isOcculudedByHorizon(const glm::dvec3& cameraPosition, con
   return isOccluded;
 }
 
-static constexpr bool isOccluded(const glm::dvec3& cameraPosition, const Frustum& frustum, const BoundingSphere& sphere)
+static constexpr bool isOccluded(
+  const glm::dvec3& cameraPosition,
+  const Frustum& frustum,
+  const BoundingSphere& sphere,
+  const glm::dvec3& horizonCullingPoint)
 {
-  return isOcculudedByHorizon(cameraPosition, sphere) || isOccludedByFrustum(frustum, sphere);
+  if (isOccludedByFrustum(frustum, sphere))
+    return true;
+
+  if (horizonCullingPoint == glm::dvec3{0.0})
+    return false;
+
+  return isOccludedByHorizon(cameraPosition, horizonCullingPoint);
 }
 
 } // namespace flb

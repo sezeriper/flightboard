@@ -10,7 +10,11 @@
 // Helpers
 namespace
 {
-SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader, SDL_GPUShader** fragmentShader)
+SDL_AppResult createShaders(
+  SDL_GPUDevice* device,
+  SDL_GPUShader** vertexShader,
+  SDL_GPUShader** fragmentShader,
+  SDL_GPUShader** debugFragmentShader)
 {
   // compile shaders using SDL_shadercross
   // first load the HLSL source code from file
@@ -22,6 +26,12 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
 
   const auto fragmentShaderSrc = flb::loadFileText("content/shaders/lighting_basic.frag.hlsl");
   if (fragmentShaderSrc.empty())
+  {
+    return SDL_APP_FAILURE;
+  }
+
+  const auto debugFragmentShaderSrc = flb::loadFileText("content/shaders/debug_color.frag.hlsl");
+  if (debugFragmentShaderSrc.empty())
   {
     return SDL_APP_FAILURE;
   }
@@ -44,6 +54,14 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
     .props = 0};
 
+  const SDL_ShaderCross_HLSL_Info debugFragmentShaderInfo{
+    .source = debugFragmentShaderSrc.c_str(),
+    .entrypoint = "main",
+    .include_dir = NULL,
+    .defines = NULL,
+    .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
+    .props = 0};
+
   size_t vertexSPIRVSize = 0;
   void* vertexSPIRV = SDL_ShaderCross_CompileSPIRVFromHLSL(&vertexShaderInfo, &vertexSPIRVSize);
   if (vertexSPIRV == NULL)
@@ -56,6 +74,14 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
   if (fragmentSPIRV == NULL)
   {
     SDL_Log("Failed to compile fragment shader HLSL to SPIR-V");
+    return SDL_APP_FAILURE;
+  }
+
+  size_t debugFragmentSPIRVSize = 0;
+  void* debugFragmentSPIRV = SDL_ShaderCross_CompileSPIRVFromHLSL(&debugFragmentShaderInfo, &debugFragmentSPIRVSize);
+  if (debugFragmentSPIRV == NULL)
+  {
+    SDL_Log("Failed to compile debug fragment shader HLSL to SPIR-V");
     return SDL_APP_FAILURE;
   }
 
@@ -72,6 +98,12 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
     .entrypoint = "main",
     .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
     .props = 0};
+  const SDL_ShaderCross_SPIRV_Info debugFragSPIRVInfo{
+    .bytecode = (const Uint8*)debugFragmentSPIRV,
+    .bytecode_size = debugFragmentSPIRVSize,
+    .entrypoint = "main",
+    .shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT,
+    .props = 0};
 
   const SDL_ShaderCross_GraphicsShaderMetadata* vertexSPIRVMetadata =
     SDL_ShaderCross_ReflectGraphicsSPIRV((const Uint8*)vertexSPIRV, vertexSPIRVSize, 0);
@@ -79,19 +111,27 @@ SDL_AppResult createShaders(SDL_GPUDevice* device, SDL_GPUShader** vertexShader,
   const SDL_ShaderCross_GraphicsShaderMetadata* fragmentSPIRVMetadata =
     SDL_ShaderCross_ReflectGraphicsSPIRV((const Uint8*)fragmentSPIRV, fragmentSPIRVSize, 0);
 
+  const SDL_ShaderCross_GraphicsShaderMetadata* debugFragmentSPIRVMetadata =
+    SDL_ShaderCross_ReflectGraphicsSPIRV((const Uint8*)debugFragmentSPIRV, debugFragmentSPIRVSize, 0);
+
   *vertexShader =
     SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &vertSPIRVInfo, &vertexSPIRVMetadata->resource_info, 0);
 
   *fragmentShader =
     SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(device, &fragSPIRVInfo, &fragmentSPIRVMetadata->resource_info, 0);
 
+  *debugFragmentShader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
+    device, &debugFragSPIRVInfo, &debugFragmentSPIRVMetadata->resource_info, 0);
+
   SDL_free((void*)vertexSPIRVMetadata);
   SDL_free((void*)fragmentSPIRVMetadata);
+  SDL_free((void*)debugFragmentSPIRVMetadata);
   SDL_free(vertexSPIRV);
   SDL_free(fragmentSPIRV);
+  SDL_free(debugFragmentSPIRV);
   SDL_ShaderCross_Quit();
 
-  return SDL_APP_CONTINUE;
+  return *debugFragmentShader ? SDL_APP_CONTINUE : SDL_APP_FAILURE;
 }
 } // namespace
 
@@ -116,10 +156,13 @@ public:
   {
     SDL_GPUShader* vertexShader = NULL;
     SDL_GPUShader* fragmentShader = NULL;
-    SDL_AppResult shaderResult = createShaders(device, &vertexShader, &fragmentShader);
-    if (shaderResult != SDL_APP_CONTINUE)
+    SDL_GPUShader* debugFragmentShader = NULL;
+    SDL_AppResult shaderResult = createShaders(device, &vertexShader, &fragmentShader, &debugFragmentShader);
+
+    if (
+      shaderResult != SDL_APP_CONTINUE || vertexShader == NULL || fragmentShader == NULL || debugFragmentShader == NULL)
     {
-      return shaderResult;
+      return SDL_APP_FAILURE;
     }
 
     // create the pipeline
@@ -205,18 +248,37 @@ public:
       return SDL_APP_FAILURE;
     }
 
+    pipelineCreateInfo.fragment_shader = debugFragmentShader;
+    // Set wireframe or different depth if needed, but for now we just change fragment shader
+    // Transparency might need blend modes but we set alpha to 0.1 and blending is enabled already
+
+    debugPipeline = SDL_CreateGPUGraphicsPipeline(device, &pipelineCreateInfo);
+    if (debugPipeline == NULL)
+    {
+      SDL_Log("CreateGPUGraphicsPipeline for debug shader failed: %s", SDL_GetError());
+      return SDL_APP_FAILURE;
+    }
+
     SDL_ReleaseGPUShader(device, vertexShader);
     SDL_ReleaseGPUShader(device, fragmentShader);
+    SDL_ReleaseGPUShader(device, debugFragmentShader);
 
     return SDL_APP_CONTINUE;
   }
 
-  void cleanup(SDL_GPUDevice* device) { SDL_ReleaseGPUGraphicsPipeline(device, pipeline); }
+  void cleanup(SDL_GPUDevice* device)
+  {
+    SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    if (debugPipeline)
+      SDL_ReleaseGPUGraphicsPipeline(device, debugPipeline);
+  }
 
   SDL_GPUGraphicsPipeline* getPipeline() const { return pipeline; }
+  SDL_GPUGraphicsPipeline* getDebugPipeline() const { return debugPipeline; }
 
 private:
   SDL_GPUGraphicsPipeline* pipeline = NULL;
+  SDL_GPUGraphicsPipeline* debugPipeline = NULL;
 };
 
 } // namespace gpu

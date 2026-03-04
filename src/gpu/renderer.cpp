@@ -1,12 +1,22 @@
 #include "gpu/renderer.hpp"
 #include "components.hpp"
+#include "gpu/allocator.hpp"
+#include "obj_loader.hpp"
 #include "tile_generator.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 
 using namespace flb;
 
 namespace
 {
-void executeRenderLoop(const gpu::RenderContext& context, entt::registry& registry, const FPSCamera& camera)
+void executeRenderLoop(
+  const gpu::RenderContext& context,
+  entt::registry& registry,
+  const FPSCamera& camera,
+  SDL_GPUBuffer* debugSphereVB,
+  SDL_GPUBuffer* debugSphereIB,
+  Uint32 debugSphereIndexCount,
+  SDL_GPUGraphicsPipeline* debugPipeline)
 {
   SDL_GPUBuffer* boundVertexBuffer = NULL;
   SDL_GPUBuffer* boundIndexBuffer = NULL;
@@ -38,6 +48,32 @@ void executeRenderLoop(const gpu::RenderContext& context, entt::registry& regist
     };
     SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
     SDL_DrawGPUIndexedPrimitives(context.renderPass, TILE_NUM_INDICES, 1, 0, 0, 0);
+  }
+
+  // Draw debug bounding spheres
+  if (debugSphereVB && debugSphereIB && debugPipeline)
+  {
+    SDL_BindGPUGraphicsPipeline(context.renderPass, debugPipeline);
+    gpu::bindVertexBuffer(context, debugSphereVB);
+    gpu::bindIndexBuffer(context, debugSphereIB);
+    // Use the last bound texture (doesn't matter since vertex color is white)
+
+    const auto view = registry.view<component::Position, component::BoundingSphere>();
+    for (const auto [entity, position, boundingSphere] : view.each())
+    {
+      if (!registry.all_of<component::Visible>(entity))
+        continue;
+
+      glm::mat4 modelTransform = glm::scale(glm::mat4(1.0f), glm::vec3(boundingSphere.value.radius));
+
+      const gpu::Uniforms uniforms{
+        .viewProjection = viewProjMat,
+        .modelPosition = glm::vec4{boundingSphere.value.position - camera.position, 1.0f},
+        .modelTransform = modelTransform,
+      };
+      // SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
+      // SDL_DrawGPUIndexedPrimitives(context.renderPass, debugSphereIndexCount, 1, 0, 0, 0);
+    }
   }
 }
 } // namespace
@@ -84,8 +120,39 @@ SDL_AppResult Renderer::init(SDL_Window* window)
   return SDL_APP_CONTINUE;
 }
 
+SDL_AppResult Renderer::initDebugSphere(gpu::Allocator& allocator)
+{
+  auto [vertices, indices] = loadOBJ("content/models/debug/sphere.obj");
+  if (vertices.empty() || indices.empty())
+  {
+    SDL_Log("Failed to load debug sphere OBJ");
+    return SDL_APP_FAILURE;
+  }
+
+  debugSphereIndexCount = indices.size();
+
+  auto vboHandle = allocator.createVertexBuffer(vertices.size() * sizeof(gpu::Vertex));
+  auto iboHandle = allocator.createIndexBuffer(indices.size() * sizeof(gpu::Index));
+
+  auto vboMem = allocator.allocateBuffer(vboHandle);
+  auto iboMem = allocator.allocateBuffer(iboHandle);
+
+  memcpy(vboMem.data(), vertices.data(), vboHandle.size);
+  memcpy(iboMem.data(), indices.data(), iboHandle.size);
+
+  debugSphereVertexBuffer = vboHandle.buffer;
+  debugSphereIndexBuffer = iboHandle.buffer;
+
+  return SDL_APP_CONTINUE;
+}
+
 void Renderer::cleanup(SDL_Window* window)
 {
+  if (debugSphereVertexBuffer)
+    SDL_ReleaseGPUBuffer(device.getDevice(), debugSphereVertexBuffer);
+  if (debugSphereIndexBuffer)
+    SDL_ReleaseGPUBuffer(device.getDevice(), debugSphereIndexBuffer);
+
   sampler.cleanup(device.getDevice());
   pipeline.cleanup(device.getDevice());
   SDL_ReleaseWindowFromGPUDevice(device.getDevice(), window);
@@ -109,7 +176,14 @@ SDL_AppResult Renderer::draw(entt::registry& registry, const FPSCamera& camera, 
   }
 
   context.renderPass = gpu::beginRenderPass(context);
-  executeRenderLoop(context, registry, camera);
+  executeRenderLoop(
+    context,
+    registry,
+    camera,
+    debugSphereVertexBuffer,
+    debugSphereIndexBuffer,
+    debugSphereIndexCount,
+    pipeline.getDebugPipeline());
   gpu::endRenderPass(context);
 
   return SDL_APP_CONTINUE;

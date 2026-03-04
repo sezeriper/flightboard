@@ -33,6 +33,8 @@ SDL_AppResult App::init()
     camera.speed = 3000.0;
 
     tileManager.init(&registry, &allocator);
+
+    renderer.initDebugSphere(allocator);
   }
 
   return SDL_APP_CONTINUE;
@@ -115,14 +117,18 @@ SDL_AppResult App::update(float dt)
           if (coords.level == MAX_DEPTH)
             return false;
 
-          const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
-          const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
+          if (coords.level < 1)
+            return true;
 
-          if (isOccluded(cameraPosition, frustum, {tileCenter, tileRadius}))
+          const auto boundingSphere = generateBoundingSphereLoose(coords.level, coords.x, coords.y);
+          const auto horizonCullingPoint = generateHorizonCullingPointLoose(boundingSphere);
+          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
             return false;
 
-          const auto distance2 = glm::distance2(cameraPosition, tileCenter);
-          if (distance2 > tileRadius * tileRadius)
+          const auto distance2 = glm::distance2(cameraPosition, boundingSphere.position);
+          const double splitThreshold = boundingSphere.radius;
+
+          if (distance2 > splitThreshold * splitThreshold)
             return false;
 
           return true;
@@ -133,20 +139,21 @@ SDL_AppResult App::update(float dt)
       quadtree.traverseLeaves(
         [this, cameraPosition, frustum, currentTime](NodeCoords coords)
         {
-          const auto tileCenter = tileToECEF(coords.level, coords.x + 0.5, coords.y + 0.5);
-          const auto tileRadius = TILE_BOUNDING_SPHERE_RADII[coords.level];
-
-          // Re-check visibility here so culled branches don't get rendered
-          if (isOccluded(cameraPosition, frustum, {tileCenter, tileRadius}))
+          const auto entity = tileManager.getOrCreateTile(coords, currentTime);
+          if (entity == entt::null)
             return;
 
-          auto entity = tileManager.getOrCreateTile(coords, currentTime);
-          if (entity == entt::null)
+          const auto boundingSphere = registry.get<component::BoundingSphere>(entity).value;
+          const auto horizonCullingPoint = registry.get<component::HorizonCullingPoint>(entity).value;
+
+          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
             return;
 
           registry.emplace<component::Visible>(entity);
         });
     }
+
+    SDL_Log("Number of visible tiles: %zu", registry.view<component::Visible>().size());
 
     allocator.upload();
   }

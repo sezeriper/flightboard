@@ -152,35 +152,4 @@ static ECEFCoords tileToECEF(std::uint32_t tile_zoom, double tile_x, double tile
 
   return {x, y, z};
 }
-
-const std::uint32_t NUM_OF_ZOOM_LEVELS = 25;
-static double calculateTileDiagonal(std::uint32_t zoom)
-{
-  const double scale = 1.0 / (1ull << zoom);
-  const double tileSizeAtZoom = SEMI_MAJOR * 2.0 * PI * scale;
-  return SQRT_2 * tileSizeAtZoom;
-}
-
-static double calculateTileBoundingSphereRadius(std::uint32_t zoom)
-{
-  const double angularWidth = (2.0 * PI) / (1ull << zoom);
-  const double angularDiagonal = angularWidth * SQRT_2;
-  if (angularDiagonal >= PI)
-  {
-    return SEMI_MAJOR;
-  }
-  return SEMI_MAJOR * glm::sin(angularDiagonal / 2.0);
-}
-
-static const std::array<double, NUM_OF_ZOOM_LEVELS> calculateTileBoundingSphereRadii()
-{
-  std::array<double, NUM_OF_ZOOM_LEVELS> diagonals{};
-  for (std::uint32_t zoom = 0; zoom < NUM_OF_ZOOM_LEVELS; ++zoom)
-  {
-    diagonals[zoom] = calculateTileBoundingSphereRadius(zoom);
-  }
-  return diagonals;
-}
-
-static std::array<double, NUM_OF_ZOOM_LEVELS> TILE_BOUNDING_SPHERE_RADII = calculateTileBoundingSphereRadii();
 } // namespace flb

@@ -168,6 +168,13 @@ private:
     registry->emplace<component::TextureHandle>(entity, finalTextureHandle);
     // remember the source of the tile data for proper UV mapping
     registry->emplace<NodeCoords>(entity, loadedCoords);
+
+    // for culling
+    const auto boundingSphere = generateTileBoundingSphere(vertices, tileCenter);
+    const auto horizonCullingPoint = generateHorizonCullingPoint(vertices, tileCenter, boundingSphere);
+    registry->emplace<component::BoundingSphere>(entity, boundingSphere);
+    registry->emplace<component::HorizonCullingPoint>(entity, horizonCullingPoint);
+
     return entity;
   };
 

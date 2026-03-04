@@ -1,6 +1,3 @@
-Texture2D AlbedoTexture : register(t0, space2);
-SamplerState AlbedoSampler : register(s0, space2);
-
 struct PixelInput
 {
     float4 Position : SV_Position;
@@ -11,24 +8,16 @@ struct PixelInput
 
 float4 main(PixelInput input) : SV_Target0
 {
-    float4 sample = AlbedoTexture.Sample(AlbedoSampler, input.UV);
-    float3 albedo = pow(sample.rgb, 1.0 / 2.2);
-    // float3 albedo = input.Color;
-
     float3 normal = normalize(input.Normal);
-    // Hard-coded light direction (pointing towards the light, i.e., top-right-front)
     float3 lightDir = normalize(float3(1.0, 1.0, 1.0));
     float3 lightColor = float3(1.0, 1.0, 1.0);
 
-    // Ambient component
     float ambientStrength = 0.2;
     float3 ambient = ambientStrength * lightColor;
 
-    // Diffuse component
     float3 diffuse = max(dot(normal, lightDir), 0.0) * lightColor;
 
-    // Combine
-    float3 result = (ambient + diffuse) * albedo;
+    float3 result = (ambient + diffuse) * input.Color;
 
-    return float4(result, 1.0);
+    return float4(1.0, 0.0, 0.0, 0.2);
 }

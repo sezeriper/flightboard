@@ -5,6 +5,8 @@
 #include <SDL3/SDL_gpu.h>
 #include <glm/glm.hpp>
 
+#include "culling.hpp"
+
 namespace flb
 {
 namespace component
@@ -35,6 +37,16 @@ struct TextureHandle
 
 struct Visible
 {
+};
+
+struct BoundingSphere
+{
+  flb::BoundingSphere value;
+};
+
+struct HorizonCullingPoint
+{
+  glm::dvec3 value;
 };
 
 } // namespace component
