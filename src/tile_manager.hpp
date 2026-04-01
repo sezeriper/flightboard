@@ -1,14 +1,19 @@
 #pragma once
 
 #include "components.hpp"
+#include "culling.hpp"
 #include "gpu/allocator.hpp"
 #include "lru_cache.hpp"
 #include "math.hpp"
+#include "quadtree.hpp"
 #include "texture_manager.hpp"
 #include "tile_generator.hpp"
 #include "time.hpp"
+#include "utils.hpp"
 
 #include <entt/entt.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/norm.hpp>
 
 #include <cstdint>
 
@@ -25,13 +30,7 @@ public:
     this->allocator = allocator;
     textureManager.init(allocator);
 
-    const auto bufHandle = allocator->createIndexBuffer(TILE_INDEX_BUFFER_SIZE);
-    tileIndexBuffer = bufHandle.buffer;
-    const auto bufMemory = allocator->allocateBuffer(bufHandle);
-    std::span<gpu::Index> indices(reinterpret_cast<gpu::Index*>(bufMemory.data()), TILE_NUM_INDICES);
-    generateTileIndices(indices);
-
-    registry->group<component::Position, component::VertexBuffer, component::IndexBuffer, component::Texture>();
+    registry->group<component::Position, component::VertexBuffer, component::Texture>();
   }
 
   void cleanup()
@@ -44,8 +43,62 @@ public:
           destroyTile(entity);
         }
       });
+  }
 
-    allocator->releaseBuffer(tileIndexBuffer);
+  void update(const Camera& camera, TimePoint currentTime)
+  {
+    registry->clear<component::Visible>();
+
+    const auto cameraPosition = camera.position;
+    const auto frustum = createFrustum(camera);
+
+    QuadTree quadtree;
+    {
+      // Timer quadTreeTimer("QuadTree build");
+      constexpr std::uint32_t MAX_DEPTH = 19;
+      quadtree.build(
+        [cameraPosition, frustum](NodeCoords coords)
+        {
+          if (coords.level == MAX_DEPTH)
+            return false;
+
+          if (coords.level < 1)
+            return true;
+
+          const auto boundingSphere = generateBoundingSphereLoose(coords.level, coords.x, coords.y);
+          const auto horizonCullingPoint = generateHorizonCullingPointLoose(boundingSphere);
+          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
+            return false;
+
+          const auto distance2 = glm::distance2(cameraPosition, boundingSphere.position);
+          const double splitThreshold = boundingSphere.radius;
+
+          if (distance2 > splitThreshold * splitThreshold)
+            return false;
+
+          return true;
+        });
+    }
+    {
+      // Timer traversalTimer("QuadTree traversal");
+      quadtree.traverseLeaves(
+        [this, cameraPosition, frustum, currentTime](NodeCoords coords)
+        {
+          const auto entity = getOrCreateTile(coords, currentTime);
+          if (entity == entt::null)
+            return;
+
+          const auto boundingSphere = registry->get<component::BoundingSphere>(entity).value;
+          const auto horizonCullingPoint = registry->get<component::HorizonCullingPoint>(entity).value;
+
+          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
+            return;
+
+          registry->emplace<component::Visible>(entity);
+        });
+    }
+
+    allocator->upload();
   }
 
   entt::entity getOrCreateTile(NodeCoords coords, TimePoint currentTime)
@@ -110,11 +163,6 @@ private:
 
   LRUCache<NodeCoords, entt::entity, CAPACITY, NodeCoordsHasher, PROBE_LIMIT> cache;
 
-  /**
-   * Index buffer shared by all tiles.
-   */
-  SDL_GPUBuffer* tileIndexBuffer;
-
   entt::entity createTile(const NodeCoords coords, TimePoint currentTime)
   {
     NodeCoords loadedCoords = coords;
@@ -161,7 +209,6 @@ private:
     // for rendering
     registry->emplace<component::Position>(entity, tileCenter);
     registry->emplace<component::VertexBuffer>(entity, vertexBuffer.buffer);
-    registry->emplace<component::IndexBuffer>(entity, tileIndexBuffer);
     registry->emplace<component::Texture>(entity, textureManager.get(finalTextureHandle).texture);
 
     // for TextureManager

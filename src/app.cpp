@@ -1,11 +1,7 @@
 #include "app.hpp"
-#include "culling.hpp"
 #include "math.hpp"
-#include "quadtree.hpp"
 
 #include <glm/ext/vector_common.hpp>
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/norm.hpp>
 
 using namespace flb;
 
@@ -19,12 +15,12 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
-    if (renderer.init(window.getWindow()) != SDL_APP_CONTINUE)
+    if (renderer.init(window.getPtr()) != SDL_APP_CONTINUE)
     {
       return SDL_APP_FAILURE;
     }
 
-    allocator.init(renderer.getDevice().getDevice());
+    allocator.init(renderer.getDevice().getPtr());
 
     GeoCoords startCoords{39.811124, 30.528396};
     // camera.position = geoToECEF(startCoords, 1'000'000.0);
@@ -35,6 +31,7 @@ SDL_AppResult App::init()
     tileManager.init(&registry, &allocator);
 
     renderer.initDebugSphere(allocator);
+    renderer.initTileIndexBuffer(allocator);
   }
 
   return SDL_APP_CONTINUE;
@@ -45,7 +42,7 @@ void App::cleanup()
   tileManager.cleanup();
   registry.clear();
   allocator.cleanup();
-  renderer.cleanup(window.getWindow());
+  renderer.cleanup(window.getPtr());
   window.cleanup();
 }
 
@@ -100,63 +97,7 @@ SDL_AppResult App::update(float dt)
   const bool* keyStates = SDL_GetKeyboardState(NULL);
   camera.updateKeyboard(dt, keyStates);
 
-  TimePoint currentTime = now();
-  registry.clear<component::Visible>();
-
-  const auto cameraPosition = camera.position;
-  const auto frustum = createFrustum(camera);
-  {
-    // Timer timer("Quadtree construction and traversal");
-    QuadTree quadtree;
-    {
-      // Timer quadTreeTimer("QuadTree build");
-      constexpr std::uint32_t MAX_DEPTH = 19;
-      quadtree.build(
-        [cameraPosition, frustum](NodeCoords coords)
-        {
-          if (coords.level == MAX_DEPTH)
-            return false;
-
-          if (coords.level < 1)
-            return true;
-
-          const auto boundingSphere = generateBoundingSphereLoose(coords.level, coords.x, coords.y);
-          const auto horizonCullingPoint = generateHorizonCullingPointLoose(boundingSphere);
-          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
-            return false;
-
-          const auto distance2 = glm::distance2(cameraPosition, boundingSphere.position);
-          const double splitThreshold = boundingSphere.radius;
-
-          if (distance2 > splitThreshold * splitThreshold)
-            return false;
-
-          return true;
-        });
-    }
-    {
-      // Timer traversalTimer("QuadTree traversal");
-      quadtree.traverseLeaves(
-        [this, cameraPosition, frustum, currentTime](NodeCoords coords)
-        {
-          const auto entity = tileManager.getOrCreateTile(coords, currentTime);
-          if (entity == entt::null)
-            return;
-
-          const auto boundingSphere = registry.get<component::BoundingSphere>(entity).value;
-          const auto horizonCullingPoint = registry.get<component::HorizonCullingPoint>(entity).value;
-
-          if (isOccluded(cameraPosition, frustum, boundingSphere, horizonCullingPoint))
-            return;
-
-          registry.emplace<component::Visible>(entity);
-        });
-    }
-
-    SDL_Log("Number of visible tiles: %zu", registry.view<component::Visible>().size());
-
-    allocator.upload();
-  }
+  tileManager.update(camera, now());
 
   return SDL_APP_CONTINUE;
 }

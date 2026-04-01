@@ -33,7 +33,6 @@ static SDL_GPURenderPass* beginRenderPass(const RenderContext& context)
   };
 
   SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(context.commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
-  SDL_BindGPUGraphicsPipeline(renderPass, context.pipeline);
 
   return renderPass;
 }
@@ -69,6 +68,11 @@ static void bindSampler(const RenderContext& context, SDL_GPUTexture* texture)
     .sampler = context.sampler,
   };
   SDL_BindGPUFragmentSamplers(context.renderPass, 0, &samplerBinding, 1);
+}
+
+static void bindPipeline(const RenderContext& context)
+{
+  SDL_BindGPUGraphicsPipeline(context.renderPass, context.pipeline);
 }
 
 } // namespace gpu

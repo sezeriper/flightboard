@@ -45,7 +45,7 @@ public:
     SDL_DestroyGPUDevice(device);
   }
 
-  SDL_GPUDevice* getDevice() const { return device; }
+  SDL_GPUDevice* getPtr() const { return device; }
   SDL_GPUCommandBuffer* getDrawCommandBuffer() const { return SDL_AcquireGPUCommandBuffer(device); }
   SDL_GPUTexture* getDepthTexture() const { return depthTexture; }
 

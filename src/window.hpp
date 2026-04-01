@@ -25,7 +25,7 @@ public:
 
   void cleanup() { SDL_DestroyWindow(window); }
 
-  SDL_Window* getWindow() const { return window; }
+  SDL_Window* getPtr() const { return window; }
 
   SDL_GPUTexture* getSwapChainTexture(const gpu::RenderContext& context) const
   {
