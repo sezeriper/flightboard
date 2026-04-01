@@ -1,6 +1,6 @@
 ---
 Language: Cpp
-Standard: c++20
+Standard: Latest
 
 # Indentation
 IndentWidth: 2
