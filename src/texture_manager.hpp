@@ -84,6 +84,8 @@ public:
 
     allocator->releaseTexture(slot.textureHandle.texture);
     slot = {};
+
+    freeSlots.push_back(handle.index);
   }
 
 private:

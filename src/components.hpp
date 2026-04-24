@@ -20,6 +20,10 @@ struct IndexBuffer
 {
   SDL_GPUBuffer* value;
 };
+struct IndexCount
+{
+  Uint32 value;
+};
 struct Texture
 {
   SDL_GPUTexture* value;

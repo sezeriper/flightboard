@@ -19,12 +19,16 @@ void renderMain(const gpu::RenderContext& context, entt::registry& registry, con
   SDL_GPUTexture* boundTexture = NULL;
 
   const glm::mat4 viewProjMat = camera.getViewProjMat();
-  const auto group =
-    registry.group<component::Position, component::VertexBuffer, component::IndexBuffer, component::Texture>();
-  for (const auto [entity, position, vertexBuffer, indexBuffer, texture] : group.each())
+  const auto view = registry.view<
+    component::Position,
+    component::VertexBuffer,
+    component::IndexBuffer,
+    component::IndexCount,
+    component::Texture>();
+  for (const auto [entity, position, vertexBuffer, indexBuffer, indexCount, texture] : view.each())
   {
-    if (!registry.all_of<component::Visible>(entity))
-      continue;
+    // if (!registry.all_of<component::Visible>(entity))
+    //   continue;
 
     if (boundIndexBuffer != indexBuffer.value)
       gpu::bindIndexBuffer(context, indexBuffer.value);
@@ -43,8 +47,10 @@ void renderMain(const gpu::RenderContext& context, entt::registry& registry, con
       .modelTransform = glm::mat4{1.0f},
     };
     SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
-    SDL_DrawGPUIndexedPrimitives(context.renderPass, TILE_NUM_INDICES, 1, 0, 0, 0);
+    SDL_DrawGPUIndexedPrimitives(context.renderPass, indexCount.value, 1, 0, 0, 0);
+    // SDL_Log("LOOO");
   }
+  // SDL_Log("LOOO2");
 }
 
 void renderTiles(
@@ -237,7 +243,7 @@ SDL_AppResult Renderer::draw(entt::registry& registry, const FPSCamera& camera, 
   context.renderPass = gpu::beginRenderPass(context);
 
   context.pipeline = mainPipeline.get();
-  // renderMain(context, registry, camera);
+  renderMain(context, registry, camera);
   renderTiles(context, registry, camera, tileIndexBuffer);
 
   // context.pipeline = debugPipeline.get();
