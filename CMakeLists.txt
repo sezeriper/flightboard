@@ -29,7 +29,7 @@ add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 # Add SDL_shadercross
 set(SDLSHADERCROSS_VENDORED OFF CACHE BOOL "Use vendored dependencies" FORCE)
 set(SDLSHADERCROSS_SPIRVCROSS_SHARED ON CACHE BOOL "Link to shared library variants of dependencies" FORCE)
-# set(SDLSHADERCROSS_DXC OFF CACHE BOOL "Enable HLSL compilation via DXC" FORCE)
+set(SDLSHADERCROSS_DXC ON CACHE BOOL "Enable HLSL compilation via DXC" FORCE)
 add_subdirectory(external/SDL_shadercross EXCLUDE_FROM_ALL)
 
 # add glm
@@ -113,11 +113,17 @@ set_target_properties(TurboJpeg::TurboJpeg PROPERTIES
 # 5. Tell CMake that this imported target cannot be resolved until the external project finishes
 add_dependencies(TurboJpeg::TurboJpeg libjpeg-turbo_ext)
 
-add_subdirectory(external/concurrentqueue)
+# ROS
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
+
 add_executable(flightboard
   src/main.cpp
   src/app.cpp
   src/gpu/renderer.cpp
+  src/ros.cpp
 )
 add_dependencies(flightboard libjpeg-turbo_ext)
 
@@ -133,12 +139,13 @@ target_compile_options(flightboard PRIVATE
 
 target_include_directories(flightboard PRIVATE "${LIBJPEG_INSTALL_DIR}/include" "src")
 
-target_link_libraries(flightboard PRIVATE
+target_link_libraries(flightboard
   glm
   imgui
   SDL3_shadercross::SDL3_shadercross
   EnTT
   png_static
   TurboJpeg::TurboJpeg
-  concurrentqueue
 )
+
+ament_target_dependencies(flightboard rclcpp std_msgs px4_msgs)

@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "math.hpp"
+#include "obj_loader.hpp"
 
 #include <glm/ext/vector_common.hpp>
 
@@ -30,8 +31,34 @@ SDL_AppResult App::init()
 
     tileManager.init(&registry, &allocator);
 
+    const auto [vertexData, indexData] = loadOBJ("content/models/floatplane/floatplane.obj");
+    const Uint32 vehicleIndexCount = indexData.size();
+
+    const auto vehicleVB = allocator.createVertexBuffer(vertexData.size() * sizeof(gpu::Vertex));
+    const auto vehicleIB = allocator.createIndexBuffer(indexData.size() * sizeof(gpu::Index));
+
+    const auto vboMem = allocator.allocateBuffer(vehicleVB);
+    const auto iboMem = allocator.allocateBuffer(vehicleIB);
+
+    memcpy(vboMem.data(), vertexData.data(), vehicleVB.size);
+    memcpy(iboMem.data(), indexData.data(), vehicleIB.size);
+
+    auto imageFile = loadFileBinary("content/models/floatplane/textures/floatplane_Albedo.png");
+    const auto vehicleTexture = allocator.createTexture(4096, 4096);
+    const std::span<std::byte> textureMemory = allocator.allocateTexture(vehicleTexture);
+    loadPNG(imageFile, textureMemory);
+
+    auto vehicle = registry.create();
+    registry.emplace<component::Position>(vehicle, camera.position);
+    registry.emplace<component::VertexBuffer>(vehicle, vehicleVB.buffer);
+    registry.emplace<component::IndexBuffer>(vehicle, vehicleIB.buffer);
+    registry.emplace<component::IndexCount>(vehicle, vehicleIndexCount);
+    registry.emplace<component::Texture>(vehicle, vehicleTexture.texture);
+
     renderer.initDebugSphere(allocator);
     renderer.initTileIndexBuffer(allocator);
+
+    ros.init();
   }
 
   return SDL_APP_CONTINUE;
@@ -39,6 +66,7 @@ SDL_AppResult App::init()
 
 void App::cleanup()
 {
+  ros.cleanup();
   tileManager.cleanup();
   registry.clear();
   allocator.cleanup();
@@ -94,6 +122,9 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
 
 SDL_AppResult App::update(float dt)
 {
+  ros.update();
+  glm::dvec3 coords = ros.getVehicleCoords();
+
   const bool* keyStates = SDL_GetKeyboardState(NULL);
   camera.updateKeyboard(dt, keyStates);
 

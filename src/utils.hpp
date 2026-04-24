@@ -43,7 +43,7 @@ static std::vector<std::byte> loadFileBinary(const std::filesystem::path& path)
 /**
  * Read jpg files into a contigous byte array using turboJPEG.
  */
-static void loadJPG(std::span<std::byte> fileBuf, const std::span<std::byte> outTexture)
+static void loadJPG(const std::span<std::byte> fileBuf, const std::span<std::byte> outTexture)
 {
   // Timer timer("JPEG decompression");
   tjhandle handle = tj3Init(TJINIT_DECOMPRESS);
@@ -78,28 +78,27 @@ static void loadJPG(std::span<std::byte> fileBuf, const std::span<std::byte> out
 }
 
 /**
- * Reads png files into Texture struct using libpng.
+ * Read png files into a contigous byte array using libpng.
  */
-// static Texture loadPNG(const std::filesystem::path& path)
-// {
-//   png_image image{};
-//   image.version = PNG_IMAGE_VERSION;
-//   if (png_image_begin_read_from_file(&image, path.string().c_str()) == 0) {
-//     SDL_Log("png_image_begin_read_from_file failed on file %s: %s", path.string().c_str(), image.message);
-//     return { 0, 0, nullptr };
-//   }
+static void loadPNG(const std::span<std::byte> fileBuf, const std::span<std::byte> outTexture)
+{
+  png_image image{};
+  image.version = PNG_IMAGE_VERSION;
+  if (png_image_begin_read_from_memory(&image, fileBuf.data(), fileBuf.size()) == 0)
+  {
+    SDL_Log("png_image_begin_read_from_file failed: %s", image.message);
+  }
 
-//   image.format = PNG_FORMAT_RGBA;
-//   std::unique_ptr<std::byte[]> buffer = std::make_unique_for_overwrite<std::byte[]>(PNG_IMAGE_SIZE(image));
+  image.format = PNG_FORMAT_RGBA;
+  // std::unique_ptr<std::byte[]> buffer = std::make_unique_for_overwrite<std::byte[]>(PNG_IMAGE_SIZE(image));
 
-//   if (png_image_finish_read(&image, NULL, buffer.get(), 0, NULL) == 0) {
-//     SDL_Log("png_image_finish_read failed: %s", image.message);
-//     png_image_free(&image);
-//     return { 0, 0, nullptr };
-//   }
-
-//   return { image.width, image.height, std::move(buffer) };
-// }
+  if (png_image_finish_read(&image, NULL, outTexture.data(), 0, NULL) == 0)
+  {
+    SDL_Log("png_image_finish_read failed: %s", image.message);
+    png_image_free(&image);
+    return;
+  }
+}
 
 static std::string loadFileText(const std::filesystem::path& path)
 {

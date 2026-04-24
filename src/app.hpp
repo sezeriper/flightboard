@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "gpu/allocator.hpp"
 #include "gpu/renderer.hpp"
+#include "ros.hpp"
 #include "tile_manager.hpp"
 #include "time.hpp"
 #include "window.hpp"
@@ -33,6 +34,8 @@ private:
   float scrollSensitivity = 0.6f;
   FPSCamera camera;
   entt::registry registry;
+
+  ROS ros;
 
   TileManager tileManager;
 };
