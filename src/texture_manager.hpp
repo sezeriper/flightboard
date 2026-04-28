@@ -2,6 +2,7 @@
 
 #include "gpu/allocator.hpp"
 
+#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <vector>
@@ -11,107 +12,137 @@ namespace flb
 
 struct TextureHandle
 {
-  std::uint32_t index = std::numeric_limits<std::uint32_t>::max();
-  std::uint32_t version = 0;
+  static constexpr std::uint32_t InvalidIndex = std::numeric_limits<std::uint32_t>::max();
 
-  bool isValid() const { return index != std::numeric_limits<std::uint32_t>::max(); }
+  std::uint32_t index = InvalidIndex;
+  std::uint32_t generation = 0;
+
+  bool isValid() const noexcept { return index != InvalidIndex; }
+
   bool operator==(const TextureHandle& other) const = default;
 };
 
 class TextureManager
 {
 public:
-  void init(gpu::Allocator* allocator) { this->allocator = allocator; }
+  void init(gpu::Allocator* allocator_) { allocator = allocator_; }
 
   TextureHandle allocate(int width, int height)
   {
-    std::uint32_t index = getFreeSlot();
-    std::uint32_t version = ++globalVersionCounter;
-
     auto texture = allocator->createTexture(width, height);
+
+    const std::uint32_t index = getFreeSlot();
 
     Slot& slot = pool[index];
     slot.textureHandle = texture;
-    slot.version = version;
     slot.refCount = 1;
 
-    return {index, version};
+    return {index, slot.generation};
   }
 
   void addRef(TextureHandle handle)
   {
-    if (!handle.isValid() || handle.index >= pool.size())
-    {
+    Slot* slot = getValidSlot(handle);
+    if (!slot)
       return;
-    }
 
-    Slot& slot = pool[handle.index];
-    if (slot.version == handle.version)
-    {
-      ++slot.refCount;
-    }
+    assert(slot->refCount != std::numeric_limits<std::uint32_t>::max());
+    ++slot->refCount;
   }
 
   gpu::TextureHandle get(TextureHandle handle) const
   {
-    if (!handle.isValid() || handle.index >= pool.size())
+    const Slot* slot = getValidSlot(handle);
+    if (!slot)
       return {};
 
-    const Slot& slot = pool[handle.index];
-
-    // If the slot was freed and recycled, the version numbers won't match
-    if (slot.version != handle.version)
-      return {};
-
-    return slot.textureHandle;
+    return slot->textureHandle;
   }
 
-  void destroy(TextureHandle handle)
+  void release(TextureHandle handle)
   {
-    // If the magic number doesn't match, it was already destroyed. Safe exit!
-    if (!handle.isValid() || handle.index >= pool.size())
+    Slot* slot = getValidSlot(handle);
+    if (!slot)
       return;
 
-    Slot& slot = pool[handle.index];
+    --slot->refCount;
 
-    if (slot.version != handle.version)
+    if (slot->refCount != 0)
       return;
 
-    --slot.refCount;
+    allocator->releaseTexture(slot->textureHandle.texture);
 
-    if (slot.refCount != 0)
-      return;
-
-    allocator->releaseTexture(slot.textureHandle.texture);
-    slot = {};
+    slot->textureHandle = {};
+    bumpGeneration(*slot);
 
     freeSlots.push_back(handle.index);
   }
 
 private:
-  gpu::Allocator* allocator = nullptr;
-
   struct Slot
   {
-    gpu::TextureHandle textureHandle{NULL, 0, 0, 0};
-    std::uint32_t version = 0;
+    gpu::TextureHandle textureHandle{};
+    std::uint32_t generation = 1;
     std::uint32_t refCount = 0;
   };
 
+  gpu::Allocator* allocator = nullptr;
+
   std::vector<Slot> pool;
   std::vector<std::uint32_t> freeSlots;
-  std::uint32_t globalVersionCounter = 0; // Increments on every allocation
 
   std::uint32_t getFreeSlot()
   {
     if (!freeSlots.empty())
     {
-      auto idx = freeSlots.back();
+      const std::uint32_t index = freeSlots.back();
       freeSlots.pop_back();
-      return idx;
+      return index;
     }
+
     pool.emplace_back();
     return static_cast<std::uint32_t>(pool.size() - 1);
+  }
+
+  Slot* getValidSlot(TextureHandle handle)
+  {
+    if (!handle.isValid() || handle.index >= pool.size())
+      return nullptr;
+
+    Slot& slot = pool[handle.index];
+
+    if (slot.refCount == 0)
+      return nullptr;
+
+    if (slot.generation != handle.generation)
+      return nullptr;
+
+    return &slot;
+  }
+
+  const Slot* getValidSlot(TextureHandle handle) const
+  {
+    if (!handle.isValid() || handle.index >= pool.size())
+      return nullptr;
+
+    const Slot& slot = pool[handle.index];
+
+    if (slot.refCount == 0)
+      return nullptr;
+
+    if (slot.generation != handle.generation)
+      return nullptr;
+
+    return &slot;
+  }
+
+  static void bumpGeneration(Slot& slot)
+  {
+    ++slot.generation;
+
+    // Keep generation 0 reserved for invalid/default handles.
+    if (slot.generation == 0)
+      ++slot.generation;
   }
 };
 

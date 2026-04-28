@@ -24,11 +24,11 @@ class TileManager
 public:
   static constexpr std::size_t CAPACITY = 8192;
 
-  void init(entt::registry* registry, gpu::Allocator* allocator)
+  void init(entt::registry* registry, gpu::Allocator* allocator, TextureManager* textureManager)
   {
     this->registry = registry;
     this->allocator = allocator;
-    textureManager.init(allocator);
+    this->textureManager = textureManager;
 
     registry->group<component::Position, component::VertexBuffer, component::Texture>();
   }
@@ -124,9 +124,9 @@ public:
 private:
   static constexpr std::size_t PROBE_LIMIT = 16;
 
-  entt::registry* registry;
-  gpu::Allocator* allocator;
-  TextureManager textureManager;
+  entt::registry* registry = nullptr;
+  gpu::Allocator* allocator = nullptr;
+  TextureManager* textureManager = nullptr;
 
   struct NodeCoordsHasher
   {
@@ -173,8 +173,8 @@ private:
     auto rawFile = loadFileBinary(tilePath);
     if (!rawFile.empty())
     {
-      finalTextureHandle = textureManager.allocate(256, 256);
-      auto texture = textureManager.get(finalTextureHandle);
+      finalTextureHandle = textureManager->allocate(256, 256);
+      auto texture = textureManager->get(finalTextureHandle);
       const std::span<std::byte> memory = allocator->allocateTexture(texture);
       loadJPG(rawFile, memory);
     }
@@ -188,7 +188,7 @@ private:
       if (parent != entt::null)
       {
         finalTextureHandle = registry->get<component::TextureHandle>(parent).value;
-        textureManager.addRef(finalTextureHandle);
+        textureManager->addRef(finalTextureHandle);
         loadedCoords = registry->get<NodeCoords>(parent);
       }
     }
@@ -209,7 +209,7 @@ private:
     // for rendering
     registry->emplace<component::Position>(entity, tileCenter);
     registry->emplace<component::VertexBuffer>(entity, vertexBuffer.buffer);
-    registry->emplace<component::Texture>(entity, textureManager.get(finalTextureHandle).texture);
+    registry->emplace<component::Texture>(entity, textureManager->get(finalTextureHandle).texture);
 
     // for TextureManager
     registry->emplace<component::TextureHandle>(entity, finalTextureHandle);
@@ -231,7 +231,7 @@ private:
     allocator->releaseBuffer(vertexBufferComp);
 
     auto textureHandle = registry->get<component::TextureHandle>(entity).value;
-    textureManager.destroy(textureHandle);
+    textureManager->release(textureHandle);
 
     registry->destroy(entity);
   }
