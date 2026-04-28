@@ -6,6 +6,7 @@
 #include "obj_loader.hpp"
 #include "tile_generator.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -127,6 +128,55 @@ void renderDebug(
   }
 }
 
+void renderIndicators(
+  const gpu::RenderContext& context, entt::registry& registry, const FPSCamera& camera, float alphaScale)
+{
+  gpu::bindPipeline(context);
+
+  SDL_GPUBuffer* boundVertexBuffer = NULL;
+  SDL_GPUBuffer* boundIndexBuffer = NULL;
+
+  const glm::mat4 viewProjMat = camera.getViewProjMat();
+  const auto view = registry.view<component::Position, component::IndicatorModel>();
+  for (const auto entity : view)
+  {
+    const auto& position = view.get<component::Position>(entity);
+    const auto& indicator = view.get<component::IndicatorModel>(entity);
+    const Mesh mesh = indicator.value.getMesh();
+
+    if (mesh.vertexBuffer.buffer == nullptr || mesh.indexBuffer.buffer == nullptr || mesh.indexCount == 0)
+    {
+      continue;
+    }
+
+    if (boundIndexBuffer != mesh.indexBuffer.buffer)
+      gpu::bindIndexBuffer(context, mesh.indexBuffer.buffer);
+    if (boundVertexBuffer != mesh.vertexBuffer.buffer)
+      gpu::bindVertexBuffer(context, mesh.vertexBuffer.buffer);
+
+    boundVertexBuffer = mesh.vertexBuffer.buffer;
+    boundIndexBuffer = mesh.indexBuffer.buffer;
+
+    glm::mat4 modelTransform{1.0f};
+    if (const auto* transform = registry.try_get<component::Transform>(entity))
+    {
+      modelTransform = glm::mat4{transform->value};
+    }
+
+    const gpu::Uniforms uniforms{
+      .viewProjection = viewProjMat,
+      .modelPosition = glm::vec4{position.value - camera.position, 1.0f},
+      .modelTransform = modelTransform,
+    };
+    glm::vec4 color = indicator.value.getColor();
+    color.a = std::clamp(color.a * alphaScale, 0.0f, 1.0f);
+
+    SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
+    SDL_PushGPUFragmentUniformData(context.commandBuffer, 0, &color, sizeof(color));
+    SDL_DrawGPUIndexedPrimitives(context.renderPass, mesh.indexCount, 1, 0, 0, 0);
+  }
+}
+
 void applyViewport(const gpu::RenderContext& context, const ViewportRect& rect)
 {
   if (!rect.valid)
@@ -201,6 +251,31 @@ SDL_AppResult Renderer::init(SDL_Window* window)
     return SDL_APP_FAILURE;
   }
 
+  gpu::PipelineConfig indicatorDepthConfig{
+    .vertexShaderPath = "content/shaders/lighting_basic.vert.hlsl",
+    .fragmentShaderPath = "content/shaders/indicator_color.frag.hlsl",
+    .cullMode = SDL_GPU_CULLMODE_NONE,
+    .enableDepthWrite = true,
+  };
+
+  if (indicatorDepthPipeline.init(device.getPtr(), window, indicatorDepthConfig) != SDL_APP_CONTINUE)
+  {
+    return SDL_APP_FAILURE;
+  }
+
+  gpu::PipelineConfig indicatorConfig{
+    .vertexShaderPath = "content/shaders/lighting_basic.vert.hlsl",
+    .fragmentShaderPath = "content/shaders/indicator_color.frag.hlsl",
+    .cullMode = SDL_GPU_CULLMODE_NONE,
+    .compareOp = SDL_GPU_COMPAREOP_GREATER_OR_EQUAL,
+    .enableDepthWrite = false,
+  };
+
+  if (indicatorPipeline.init(device.getPtr(), window, indicatorConfig) != SDL_APP_CONTINUE)
+  {
+    return SDL_APP_FAILURE;
+  }
+
   if (sampler.init(device.getPtr()) != SDL_APP_CONTINUE)
   {
     return SDL_APP_FAILURE;
@@ -269,6 +344,8 @@ void Renderer::cleanup(SDL_Window* window)
   sampler.cleanup(device.getPtr());
   mainPipeline.cleanup(device.getPtr());
   debugPipeline.cleanup(device.getPtr());
+  indicatorDepthPipeline.cleanup(device.getPtr());
+  indicatorPipeline.cleanup(device.getPtr());
   SDL_ReleaseWindowFromGPUDevice(device.getPtr(), window);
   device.cleanup();
 }
@@ -380,6 +457,12 @@ SDL_AppResult Renderer::draw(
     context.pipeline = mainPipeline.get();
     renderMain(context, registry, camera);
     renderTiles(context, registry, camera, tileIndexBuffer);
+
+    context.pipeline = indicatorDepthPipeline.get();
+    renderIndicators(context, registry, camera, 0.0f);
+
+    context.pipeline = indicatorPipeline.get();
+    renderIndicators(context, registry, camera, 1.0f);
 
     // context.pipeline = debugPipeline.get();
     // renderDebug(

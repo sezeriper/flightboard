@@ -75,6 +75,10 @@ struct PipelineConfig
   std::string fragmentShaderPath;
   SDL_GPUPrimitiveType primitiveType = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
   SDL_GPUFillMode fillMode = SDL_GPU_FILLMODE_FILL;
+  SDL_GPUCullMode cullMode = SDL_GPU_CULLMODE_BACK;
+  SDL_GPUCompareOp compareOp = SDL_GPU_COMPAREOP_GREATER;
+  bool enableDepthTest = true;
+  bool enableDepthWrite = true;
 };
 
 class Pipeline
@@ -155,13 +159,13 @@ public:
       .primitive_type = config.primitiveType,
       .rasterizer_state{
         .fill_mode = config.fillMode,
-        .cull_mode = SDL_GPU_CULLMODE_BACK,
+        .cull_mode = config.cullMode,
         .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
       },
       .depth_stencil_state{
-        .compare_op = SDL_GPU_COMPAREOP_GREATER, // reversed-z
-        .enable_depth_test = true,
-        .enable_depth_write = true,
+        .compare_op = config.compareOp, // reversed-z
+        .enable_depth_test = config.enableDepthTest,
+        .enable_depth_write = config.enableDepthWrite,
       },
       .target_info{
         .color_target_descriptions = colorTargetDescriptions,

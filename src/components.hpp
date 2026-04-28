@@ -1,5 +1,6 @@
 #pragma once
 
+#include "indicator_model.hpp"
 #include "model.hpp"
 #include "texture_manager.hpp"
 
@@ -53,6 +54,11 @@ struct MeshHandle
 struct Model
 {
   flb::Model value;
+};
+
+struct IndicatorModel
+{
+  flb::IndicatorModel value;
 };
 
 struct Visible

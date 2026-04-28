@@ -45,6 +45,8 @@ private:
   gpu::Device device;
   gpu::Pipeline mainPipeline;
   gpu::Pipeline debugPipeline;
+  gpu::Pipeline indicatorDepthPipeline;
+  gpu::Pipeline indicatorPipeline;
   gpu::Sampler sampler;
   SDL_GPUTextureFormat sceneColorFormat = SDL_GPU_TEXTUREFORMAT_INVALID;
 
