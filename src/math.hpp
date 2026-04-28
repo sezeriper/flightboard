@@ -67,6 +67,32 @@ static glm::vec3 getSurfaceNormal(const GeoCoords& geo)
   return glm::normalize(glm::dvec3(x, y, z));
 }
 
+/**
+ * Builds a local tangent frame for the given geographic coordinates.
+ *
+ * The returned matrix maps model-local +X to east, +Y to north, and +Z to the
+ * WGS84 ellipsoid surface normal.
+ */
+static glm::mat3 getSurfaceAlignedTransform(const GeoCoords& geo)
+{
+  const glm::vec3 up = getSurfaceNormal(geo);
+
+  constexpr glm::vec3 earthAxis{0.0f, 0.0f, 1.0f};
+  glm::vec3 east = glm::cross(earthAxis, up);
+  if (glm::dot(east, east) < 1e-8f)
+  {
+    east = {0.0f, 1.0f, 0.0f};
+  }
+  else
+  {
+    east = glm::normalize(east);
+  }
+
+  const glm::vec3 north = glm::normalize(glm::cross(up, east));
+
+  return {east, north, up};
+}
+
 static NodeCoords geoToTileCoords(const GeoCoords& from, const std::uint32_t& zoom)
 {
   const double latitude = glm::clamp(from.latitude, MIN_LATITUDE, MAX_LATITUDE);

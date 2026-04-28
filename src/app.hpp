@@ -5,6 +5,7 @@
 #include "gpu/renderer.hpp"
 #include "imgui_layer.hpp"
 #include "mesh_manager.hpp"
+#include "model.hpp"
 #include "ros.hpp"
 #include "texture_manager.hpp"
 #include "tile_manager.hpp"

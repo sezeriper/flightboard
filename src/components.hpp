@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mesh_manager.hpp"
+#include "model.hpp"
 #include "texture_manager.hpp"
 
 #include <SDL3/SDL_gpu.h>
@@ -35,6 +35,11 @@ struct Position
   glm::dvec3 value;
 };
 
+struct Transform
+{
+  glm::mat3 value{1.0f};
+};
+
 struct TextureHandle
 {
   flb::TextureHandle value;
@@ -43,6 +48,11 @@ struct TextureHandle
 struct MeshHandle
 {
   flb::MeshHandle value;
+};
+
+struct Model
+{
+  flb::Model value;
 };
 
 struct Visible

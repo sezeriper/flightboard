@@ -22,38 +22,49 @@ void renderMain(const gpu::RenderContext& context, entt::registry& registry, con
   SDL_GPUTexture* boundTexture = NULL;
 
   const glm::mat4 viewProjMat = camera.getViewProjMat();
-  const auto view = registry.view<
-    component::Position,
-    component::VertexBuffer,
-    component::IndexBuffer,
-    component::IndexCount,
-    component::Texture>();
-  for (const auto [entity, position, vertexBuffer, indexBuffer, indexCount, texture] : view.each())
+  const auto view = registry.view<component::Position, component::Model>();
+  for (const auto entity : view)
   {
     // if (!registry.all_of<component::Visible>(entity))
     //   continue;
 
-    if (boundIndexBuffer != indexBuffer.value)
-      gpu::bindIndexBuffer(context, indexBuffer.value);
-    if (boundVertexBuffer != vertexBuffer.value)
-      gpu::bindVertexBuffer(context, vertexBuffer.value);
-    if (boundTexture != texture.value)
-      gpu::bindSampler(context, texture.value);
+    const auto& position = view.get<component::Position>(entity);
+    const auto& model = view.get<component::Model>(entity);
+    const Mesh mesh = model.value.getMesh();
+    const gpu::TextureHandle texture = model.value.getTexture();
 
-    boundVertexBuffer = vertexBuffer.value;
-    boundIndexBuffer = indexBuffer.value;
-    boundTexture = texture.value;
+    if (
+      mesh.vertexBuffer.buffer == nullptr || mesh.indexBuffer.buffer == nullptr || texture.texture == nullptr ||
+      mesh.indexCount == 0)
+    {
+      continue;
+    }
+
+    if (boundIndexBuffer != mesh.indexBuffer.buffer)
+      gpu::bindIndexBuffer(context, mesh.indexBuffer.buffer);
+    if (boundVertexBuffer != mesh.vertexBuffer.buffer)
+      gpu::bindVertexBuffer(context, mesh.vertexBuffer.buffer);
+    if (boundTexture != texture.texture)
+      gpu::bindSampler(context, texture.texture);
+
+    boundVertexBuffer = mesh.vertexBuffer.buffer;
+    boundIndexBuffer = mesh.indexBuffer.buffer;
+    boundTexture = texture.texture;
+
+    glm::mat4 modelTransform{1.0f};
+    if (const auto* transform = registry.try_get<component::Transform>(entity))
+    {
+      modelTransform = glm::mat4{transform->value};
+    }
 
     const gpu::Uniforms uniforms{
       .viewProjection = viewProjMat,
       .modelPosition = glm::vec4{position.value - camera.position, 1.0f},
-      .modelTransform = glm::mat4{1.0f},
+      .modelTransform = modelTransform,
     };
     SDL_PushGPUVertexUniformData(context.commandBuffer, 0, &uniforms, sizeof(uniforms));
-    SDL_DrawGPUIndexedPrimitives(context.renderPass, indexCount.value, 1, 0, 0, 0);
-    // SDL_Log("LOOO");
+    SDL_DrawGPUIndexedPrimitives(context.renderPass, mesh.indexCount, 1, 0, 0, 0);
   }
-  // SDL_Log("LOOO2");
 }
 
 void renderTiles(
