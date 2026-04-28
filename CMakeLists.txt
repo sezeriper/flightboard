@@ -122,6 +122,7 @@ find_package(px4_msgs REQUIRED)
 add_executable(flightboard
   src/main.cpp
   src/app.cpp
+  src/imgui_layer.cpp
   src/gpu/renderer.cpp
   src/ros.cpp
 )

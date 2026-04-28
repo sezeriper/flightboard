@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "gpu/allocator.hpp"
 #include "gpu/renderer.hpp"
+#include "imgui_layer.hpp"
 #include "ros.hpp"
 #include "tile_manager.hpp"
 #include "time.hpp"
@@ -28,11 +29,13 @@ private:
   Window window;
   Renderer renderer;
   gpu::Allocator allocator;
+  ImGuiLayer imGuiLayer;
 
   float mouseSensitivity = 0.006f;
   float keyboardSensitivity = 4.0f;
   float scrollSensitivity = 0.6f;
   FPSCamera camera;
+  bool cameraMouseLook = false;
   entt::registry registry;
 
   ROS ros;

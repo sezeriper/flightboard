@@ -21,6 +21,11 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
+    if (imGuiLayer.init(window.getPtr(), renderer.getDevice().getPtr()) != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
+
     allocator.init(renderer.getDevice().getPtr());
 
     GeoCoords startCoords{39.811124, 30.528396};
@@ -66,6 +71,7 @@ SDL_AppResult App::init()
 
 void App::cleanup()
 {
+  imGuiLayer.cleanup(renderer.getDevice().getPtr());
   ros.cleanup();
   tileManager.cleanup();
   registry.clear();
@@ -76,6 +82,8 @@ void App::cleanup()
 
 SDL_AppResult App::handleEvent(SDL_Event* event)
 {
+  imGuiLayer.handleEvent(*event);
+
   if (event->type == SDL_EVENT_QUIT || event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
   {
     return SDL_APP_SUCCESS;
@@ -86,25 +94,44 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
     auto width = event->window.data1;
     auto height = event->window.data2;
     camera.aspect = static_cast<float>(width) / static_cast<float>(height);
-
-    SDL_AppResult result = renderer.getDevice().createDepthTexture(width, height);
-    if (result != SDL_APP_CONTINUE)
-    {
-      return SDL_APP_FAILURE;
-    }
     return SDL_APP_CONTINUE;
   }
 
   if (event->type == SDL_EVENT_MOUSE_MOTION)
   {
-    const auto dtx = event->motion.xrel;
-    const auto dty = event->motion.yrel;
-    camera.updateMouse(dtx, dty);
+    if (cameraMouseLook)
+    {
+      const auto dtx = event->motion.xrel;
+      const auto dty = event->motion.yrel;
+      camera.updateMouse(dtx, dty);
+    }
+    return SDL_APP_CONTINUE;
+  }
+
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_RIGHT)
+  {
+    if (imGuiLayer.isMainViewHovered() || !imGuiLayer.wantsMouseCapture())
+    {
+      cameraMouseLook = true;
+      SDL_SetWindowRelativeMouseMode(window.getPtr(), true);
+    }
+    return SDL_APP_CONTINUE;
+  }
+
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_RIGHT)
+  {
+    cameraMouseLook = false;
+    SDL_SetWindowRelativeMouseMode(window.getPtr(), false);
     return SDL_APP_CONTINUE;
   }
 
   if (event->type == SDL_EVENT_MOUSE_WHEEL)
   {
+    if (imGuiLayer.wantsMouseCapture() && !imGuiLayer.isMainViewHovered())
+    {
+      return SDL_APP_CONTINUE;
+    }
+
     const auto scrollAmount = glm::abs(event->wheel.y);
     const auto direction = event->wheel.y > 0.0f ? 1.0f : -1.0f;
 
@@ -126,11 +153,33 @@ SDL_AppResult App::update(float dt)
   glm::dvec3 coords = ros.getVehicleCoords();
 
   const bool* keyStates = SDL_GetKeyboardState(NULL);
-  camera.updateKeyboard(dt, keyStates);
+  if (cameraMouseLook || imGuiLayer.isMainViewFocused() || !imGuiLayer.wantsKeyboardCapture())
+  {
+    camera.updateKeyboard(dt, keyStates);
+  }
 
   tileManager.update(camera, now());
 
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult App::draw() { return renderer.draw(registry, camera, window); }
+SDL_AppResult App::draw()
+{
+  imGuiLayer.beginFrame();
+
+  const ViewportRect mainViewRect = imGuiLayer.beginMainView();
+  if (mainViewRect.valid)
+  {
+    if (renderer.ensureSceneTarget(mainViewRect) != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
+    camera.aspect = mainViewRect.aspect();
+  }
+
+  imGuiLayer.endMainView(renderer.getSceneTexture());
+  imGuiLayer.drawSidePanel();
+  imGuiLayer.endFrame();
+
+  return renderer.draw(registry, camera, window, &imGuiLayer);
+}

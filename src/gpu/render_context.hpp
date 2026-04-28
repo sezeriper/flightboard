@@ -37,11 +37,23 @@ static SDL_GPURenderPass* beginRenderPass(const RenderContext& context)
   return renderPass;
 }
 
-static void endRenderPass(const RenderContext& context)
+static SDL_GPURenderPass* beginColorClearRenderPass(const RenderContext& context)
 {
-  SDL_EndGPURenderPass(context.renderPass);
-  SDL_SubmitGPUCommandBuffer(context.commandBuffer);
+  SDL_GPUColorTargetInfo colorTargetInfo{
+    .texture = context.swapchainTexture,
+    .clear_color{0.0f, 0.0f, 0.0f, 1.0f},
+    .load_op = SDL_GPU_LOADOP_CLEAR,
+    .store_op = SDL_GPU_STOREOP_STORE,
+  };
+
+  SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(context.commandBuffer, &colorTargetInfo, 1, nullptr);
+
+  return renderPass;
 }
+
+static void endRenderPass(const RenderContext& context) { SDL_EndGPURenderPass(context.renderPass); }
+
+static void submitCommandBuffer(const RenderContext& context) { SDL_SubmitGPUCommandBuffer(context.commandBuffer); }
 
 static void bindVertexBuffer(const RenderContext& context, SDL_GPUBuffer* buffer)
 {

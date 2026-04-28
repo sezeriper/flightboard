@@ -18,7 +18,7 @@ public:
       return SDL_APP_FAILURE;
     }
 
-    SDL_SetWindowRelativeMouseMode(window, true);
+    SDL_SetWindowRelativeMouseMode(window, false);
 
     return SDL_APP_CONTINUE;
   }

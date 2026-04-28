@@ -2,8 +2,11 @@
 #include "SDL3/SDL_gpu.h"
 #include "components.hpp"
 #include "gpu/allocator.hpp"
+#include "imgui_layer.hpp"
 #include "obj_loader.hpp"
 #include "tile_generator.hpp"
+
+#include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 
 using namespace flb;
@@ -112,6 +115,37 @@ void renderDebug(
     SDL_DrawGPUIndexedPrimitives(context.renderPass, debugSphereIndexCount, 1, 0, 0, 0);
   }
 }
+
+void applyViewport(const gpu::RenderContext& context, const ViewportRect& rect)
+{
+  if (!rect.valid)
+  {
+    return;
+  }
+
+  SDL_GPUViewport viewport{
+    .x = rect.x,
+    .y = rect.y,
+    .w = rect.width,
+    .h = rect.height,
+    .min_depth = 0.0f,
+    .max_depth = 1.0f,
+  };
+  SDL_SetGPUViewport(context.renderPass, &viewport);
+
+  const int scissorX = static_cast<int>(std::floor(rect.x));
+  const int scissorY = static_cast<int>(std::floor(rect.y));
+  const int scissorRight = static_cast<int>(std::ceil(rect.x + rect.width));
+  const int scissorBottom = static_cast<int>(std::ceil(rect.y + rect.height));
+  SDL_Rect scissor{
+    .x = scissorX,
+    .y = scissorY,
+    .w = scissorRight - scissorX,
+    .h = scissorBottom - scissorY,
+  };
+  SDL_SetGPUScissor(context.renderPass, &scissor);
+}
+
 } // namespace
 
 namespace flb
@@ -160,6 +194,8 @@ SDL_AppResult Renderer::init(SDL_Window* window)
   {
     return SDL_APP_FAILURE;
   }
+
+  sceneColorFormat = SDL_GetGPUSwapchainTextureFormat(device.getPtr(), window);
 
   SDL_PropertiesID props = SDL_GetGPUDeviceProperties(device.getPtr());
   auto deviceName = SDL_GetStringProperty(props, SDL_PROP_GPU_DEVICE_NAME_STRING, "Unknown GPU");
@@ -213,6 +249,8 @@ void Renderer::initTileIndexBuffer(gpu::Allocator& allocator)
 
 void Renderer::cleanup(SDL_Window* window)
 {
+  releaseSceneTarget();
+
   SDL_ReleaseGPUBuffer(device.getPtr(), debugSphereVertexBuffer);
   SDL_ReleaseGPUBuffer(device.getPtr(), debugSphereIndexBuffer);
   SDL_ReleaseGPUBuffer(device.getPtr(), tileIndexBuffer);
@@ -224,38 +262,136 @@ void Renderer::cleanup(SDL_Window* window)
   device.cleanup();
 }
 
-SDL_AppResult Renderer::draw(entt::registry& registry, const FPSCamera& camera, const Window& window) const
+void Renderer::releaseSceneTarget()
+{
+  if (sceneTarget.colorTexture != nullptr)
+  {
+    SDL_ReleaseGPUTexture(device.getPtr(), sceneTarget.colorTexture);
+  }
+  if (sceneTarget.depthTexture != nullptr)
+  {
+    SDL_ReleaseGPUTexture(device.getPtr(), sceneTarget.depthTexture);
+  }
+
+  sceneTarget = {};
+}
+
+SDL_AppResult Renderer::ensureSceneTarget(const ViewportRect& rect)
+{
+  if (!rect.valid)
+  {
+    return SDL_APP_CONTINUE;
+  }
+
+  const auto width = static_cast<Uint32>(std::ceil(rect.width));
+  const auto height = static_cast<Uint32>(std::ceil(rect.height));
+  if (width == 0 || height == 0)
+  {
+    return SDL_APP_CONTINUE;
+  }
+
+  if (sceneTarget.colorTexture != nullptr && sceneTarget.width == width && sceneTarget.height == height)
+  {
+    return SDL_APP_CONTINUE;
+  }
+
+  releaseSceneTarget();
+
+  SDL_GPUTextureCreateInfo colorTextureCreateInfo{
+    .type = SDL_GPU_TEXTURETYPE_2D,
+    .format = sceneColorFormat,
+    .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
+    .width = width,
+    .height = height,
+    .layer_count_or_depth = 1,
+    .num_levels = 1,
+  };
+  sceneTarget.colorTexture = SDL_CreateGPUTexture(device.getPtr(), &colorTextureCreateInfo);
+  if (sceneTarget.colorTexture == nullptr)
+  {
+    SDL_Log("CreateGPUTexture scene color failed: %s", SDL_GetError());
+    releaseSceneTarget();
+    return SDL_APP_FAILURE;
+  }
+
+  SDL_GPUTextureCreateInfo depthTextureCreateInfo{
+    .type = SDL_GPU_TEXTURETYPE_2D,
+    .format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
+    .usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+    .width = width,
+    .height = height,
+    .layer_count_or_depth = 1,
+    .num_levels = 1,
+  };
+  sceneTarget.depthTexture = SDL_CreateGPUTexture(device.getPtr(), &depthTextureCreateInfo);
+  if (sceneTarget.depthTexture == nullptr)
+  {
+    SDL_Log("CreateGPUTexture scene depth failed: %s", SDL_GetError());
+    releaseSceneTarget();
+    return SDL_APP_FAILURE;
+  }
+
+  sceneTarget.width = width;
+  sceneTarget.height = height;
+
+  return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult Renderer::draw(
+  entt::registry& registry, const FPSCamera& camera, const Window& window, const ImGuiLayer* imGuiLayer) const
 {
   gpu::RenderContext context;
   context.pipeline = mainPipeline.get();
   context.sampler = sampler.getSampler();
   context.commandBuffer = device.getDrawCommandBuffer();
-  context.swapchainTexture = window.getSwapChainTexture(context);
-  context.depthTexture = device.getDepthTexture();
+  SDL_GPUTexture* swapchainTexture = window.getSwapChainTexture(context);
 
   // window is minimized or 0 size, exit early
-  if (context.swapchainTexture == NULL)
+  if (swapchainTexture == NULL)
   {
     SDL_SubmitGPUCommandBuffer(context.commandBuffer);
     return SDL_APP_CONTINUE;
   }
 
-  context.renderPass = gpu::beginRenderPass(context);
+  if (sceneTarget.colorTexture != nullptr && sceneTarget.depthTexture != nullptr)
+  {
+    context.swapchainTexture = sceneTarget.colorTexture;
+    context.depthTexture = sceneTarget.depthTexture;
+    context.renderPass = gpu::beginRenderPass(context);
 
-  context.pipeline = mainPipeline.get();
-  renderMain(context, registry, camera);
-  renderTiles(context, registry, camera, tileIndexBuffer);
+    ViewportRect sceneRect{
+      .width = static_cast<float>(sceneTarget.width),
+      .height = static_cast<float>(sceneTarget.height),
+      .valid = true,
+    };
+    applyViewport(context, sceneRect);
 
-  // context.pipeline = debugPipeline.get();
-  // renderDebug(
-  //   context,
-  //   registry,
-  //   camera,
-  //   debugSphereVertexBuffer,
-  //   debugSphereIndexBuffer,
-  //   debugSphereIndexCount);
+    context.pipeline = mainPipeline.get();
+    renderMain(context, registry, camera);
+    renderTiles(context, registry, camera, tileIndexBuffer);
 
-  gpu::endRenderPass(context);
+    // context.pipeline = debugPipeline.get();
+    // renderDebug(
+    //   context,
+    //   registry,
+    //   camera,
+    //   debugSphereVertexBuffer,
+    //   debugSphereIndexBuffer,
+    //   debugSphereIndexCount);
+
+    gpu::endRenderPass(context);
+  }
+
+  if (imGuiLayer != nullptr && imGuiLayer->hasDrawData())
+  {
+    imGuiLayer->prepareDrawData(context.commandBuffer);
+    context.swapchainTexture = swapchainTexture;
+    context.renderPass = gpu::beginColorClearRenderPass(context);
+    imGuiLayer->renderDrawData(context.commandBuffer, context.renderPass);
+    gpu::endRenderPass(context);
+  }
+
+  gpu::submitCommandBuffer(context);
 
   return SDL_APP_CONTINUE;
 }
