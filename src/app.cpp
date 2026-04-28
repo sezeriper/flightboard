@@ -4,10 +4,58 @@
 
 #include <glm/ext/vector_common.hpp>
 
+#include <cstddef>
+#include <filesystem>
+#include <span>
+
 using namespace flb;
 
 namespace
 {
+Model loadModel(
+  MeshManager& meshManager,
+  TextureManager& textureManager,
+  gpu::Allocator& allocator,
+  const std::filesystem::path& objPath,
+  const std::filesystem::path& texturePath,
+  int textureWidth,
+  int textureHeight,
+  const char* modelName)
+{
+  const auto [vertexData, indexData] = loadOBJ(objPath);
+  const MeshHandle meshHandle = meshManager.allocate(vertexData, indexData);
+  const Mesh mesh = meshManager.get(meshHandle);
+  if (!meshHandle.isValid() || mesh.vertexBuffer.buffer == nullptr || mesh.indexBuffer.buffer == nullptr)
+  {
+    SDL_Log("Failed to create %s mesh", modelName);
+    return {};
+  }
+
+  auto imageFile = loadFileBinary(texturePath);
+  const TextureHandle textureHandle = textureManager.allocate(textureWidth, textureHeight);
+  const auto texture = textureManager.get(textureHandle);
+  if (imageFile.empty() || !textureHandle.isValid() || texture.texture == nullptr)
+  {
+    SDL_Log("Failed to create %s texture", modelName);
+    meshManager.release(meshHandle);
+    textureManager.release(textureHandle);
+    return {};
+  }
+
+  const std::span<std::byte> textureMemory = allocator.allocateTexture(texture);
+  if (textureMemory.empty())
+  {
+    SDL_Log("Failed to allocate %s texture upload memory", modelName);
+    meshManager.release(meshHandle);
+    textureManager.release(textureHandle);
+    return {};
+  }
+
+  loadPNG(imageFile, textureMemory);
+
+  return {&meshManager, &textureManager, meshHandle, textureHandle};
+}
+
 void releaseRegistryGpuResources(
   entt::registry& registry, gpu::Allocator& allocator, MeshManager& meshManager, TextureManager& textureManager)
 {
@@ -26,7 +74,7 @@ void releaseRegistryGpuResources(
   auto vertexBufferView = registry.view<component::VertexBuffer>();
   for (auto entity : vertexBufferView)
   {
-    if (!registry.all_of<component::MeshHandle>(entity))
+    if (!registry.any_of<component::MeshHandle, component::Model>(entity))
     {
       allocator.releaseBuffer(vertexBufferView.get<component::VertexBuffer>(entity).value);
     }
@@ -35,7 +83,7 @@ void releaseRegistryGpuResources(
   auto indexBufferView = registry.view<component::IndexBuffer>();
   for (auto entity : indexBufferView)
   {
-    if (!registry.all_of<component::MeshHandle>(entity))
+    if (!registry.any_of<component::MeshHandle, component::Model>(entity))
     {
       allocator.releaseBuffer(indexBufferView.get<component::IndexBuffer>(entity).value);
     }
@@ -44,7 +92,7 @@ void releaseRegistryGpuResources(
   auto textureView = registry.view<component::Texture>();
   for (auto entity : textureView)
   {
-    if (!registry.all_of<component::TextureHandle>(entity))
+    if (!registry.any_of<component::TextureHandle, component::Model>(entity))
     {
       allocator.releaseTexture(textureView.get<component::Texture>(entity).value);
     }
@@ -75,8 +123,8 @@ SDL_AppResult App::init()
     allocator.init(renderer.getDevice().getPtr());
 
     GeoCoords startCoords{39.811124, 30.528396};
-    camera.position = geoToECEF(startCoords, 1'000'000.0);
-    // camera.position = geoToECEF(startCoords);
+    // camera.position = geoToECEF(startCoords, 1'000'000.0);
+    camera.position = geoToECEF(startCoords);
     camera.up = getSurfaceNormal(startCoords);
     camera.speed = 3000.0;
 
@@ -84,47 +132,44 @@ SDL_AppResult App::init()
     meshManager.init(&allocator);
     tileManager.init(&registry, &allocator, &textureManager);
 
-    const auto [vertexData, indexData] = loadOBJ("content/models/floatplane/floatplane.obj");
-    const MeshHandle vehicleMeshHandle = meshManager.allocate(vertexData, indexData);
-    const Mesh vehicleMesh = meshManager.get(vehicleMeshHandle);
-    if (
-      !vehicleMeshHandle.isValid() || vehicleMesh.vertexBuffer.buffer == nullptr ||
-      vehicleMesh.indexBuffer.buffer == nullptr)
+    const Model vehicleModel = loadModel(
+      meshManager,
+      textureManager,
+      allocator,
+      "content/models/floatplane/floatplane.obj",
+      "content/models/floatplane/textures/floatplane_Albedo.png",
+      4096,
+      4096,
+      "vehicle");
+    if (!vehicleModel.isValid())
     {
-      SDL_Log("Failed to create vehicle mesh");
       return SDL_APP_FAILURE;
     }
 
-    auto imageFile = loadFileBinary("content/models/floatplane/textures/floatplane_Albedo.png");
-    const TextureHandle vehicleTextureHandle = textureManager.allocate(4096, 4096);
-    const auto vehicleTexture = textureManager.get(vehicleTextureHandle);
-    if (imageFile.empty() || !vehicleTextureHandle.isValid() || vehicleTexture.texture == nullptr)
+    const Model tb2Model = loadModel(
+      meshManager,
+      textureManager,
+      allocator,
+      "content/models/tb2/tb2.obj",
+      "content/models/tb2/Image_0.png",
+      1024,
+      1024,
+      "tb2");
+    if (!tb2Model.isValid())
     {
-      SDL_Log("Failed to create vehicle texture");
-      meshManager.release(vehicleMeshHandle);
-      textureManager.release(vehicleTextureHandle);
       return SDL_APP_FAILURE;
     }
-
-    const std::span<std::byte> textureMemory = allocator.allocateTexture(vehicleTexture);
-    if (textureMemory.empty())
-    {
-      SDL_Log("Failed to allocate vehicle texture upload memory");
-      meshManager.release(vehicleMeshHandle);
-      textureManager.release(vehicleTextureHandle);
-      return SDL_APP_FAILURE;
-    }
-
-    loadPNG(imageFile, textureMemory);
 
     auto vehicle = registry.create();
     registry.emplace<component::Position>(vehicle, camera.position);
-    registry.emplace<component::VertexBuffer>(vehicle, vehicleMesh.vertexBuffer.buffer);
-    registry.emplace<component::IndexBuffer>(vehicle, vehicleMesh.indexBuffer.buffer);
-    registry.emplace<component::IndexCount>(vehicle, vehicleMesh.indexCount);
-    registry.emplace<component::Texture>(vehicle, vehicleTexture.texture);
-    registry.emplace<component::MeshHandle>(vehicle, vehicleMeshHandle);
-    registry.emplace<component::TextureHandle>(vehicle, vehicleTextureHandle);
+    registry.emplace<component::Transform>(vehicle, getSurfaceAlignedTransform(startCoords));
+    registry.emplace<component::Model>(vehicle, vehicleModel);
+
+    GeoCoords tb2Coords{39.811224, 30.528496};
+    auto tb2 = registry.create();
+    registry.emplace<component::Position>(tb2, geoToECEF(tb2Coords));
+    registry.emplace<component::Transform>(tb2, getSurfaceAlignedTransform(tb2Coords));
+    registry.emplace<component::Model>(tb2, tb2Model);
 
     renderer.initDebugSphere(allocator);
     renderer.initTileIndexBuffer(allocator);
