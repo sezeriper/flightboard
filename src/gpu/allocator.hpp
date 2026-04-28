@@ -178,6 +178,11 @@ public:
    */
   void releaseBuffer(SDL_GPUBuffer* buffer)
   {
+    if (buffer == nullptr)
+    {
+      return;
+    }
+
     // TODO: Use a handle instead of raw pointers to avoid this kind of issues. This is a temporary solution to prevent
     // crashes when a buffer is released while it's still pending for copy.
     std::erase_if(
@@ -190,6 +195,11 @@ public:
    */
   void releaseTexture(SDL_GPUTexture* texture)
   {
+    if (texture == nullptr)
+    {
+      return;
+    }
+
     // TODO: Use a handle instead of raw pointers to avoid this kind of issues. This is a temporary solution to prevent
     // crashes when a texture is released while it's still pending for copy.
     std::erase_if(

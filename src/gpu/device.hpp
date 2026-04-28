@@ -41,8 +41,22 @@ public:
 
   void cleanup()
   {
-    SDL_ReleaseGPUTexture(device, depthTexture);
+    if (device == nullptr)
+    {
+      return;
+    }
+
+    SDL_WaitForGPUIdle(device);
+
+    if (depthTexture != nullptr)
+    {
+      SDL_ReleaseGPUTexture(device, depthTexture);
+      depthTexture = nullptr;
+    }
+
+    SDL_WaitForGPUIdle(device);
     SDL_DestroyGPUDevice(device);
+    device = nullptr;
   }
 
   SDL_GPUDevice* getPtr() const { return device; }

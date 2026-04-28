@@ -6,6 +6,36 @@
 
 using namespace flb;
 
+namespace
+{
+void releaseRegistryGpuResources(entt::registry& registry, gpu::Allocator& allocator)
+{
+  auto vertexBufferView = registry.view<component::VertexBuffer>();
+  for (auto entity : vertexBufferView)
+  {
+    if (!registry.all_of<component::TextureHandle>(entity))
+    {
+      allocator.releaseBuffer(vertexBufferView.get<component::VertexBuffer>(entity).value);
+    }
+  }
+
+  auto indexBufferView = registry.view<component::IndexBuffer>();
+  for (auto entity : indexBufferView)
+  {
+    allocator.releaseBuffer(indexBufferView.get<component::IndexBuffer>(entity).value);
+  }
+
+  auto textureView = registry.view<component::Texture>();
+  for (auto entity : textureView)
+  {
+    if (!registry.all_of<component::TextureHandle>(entity))
+    {
+      allocator.releaseTexture(textureView.get<component::Texture>(entity).value);
+    }
+  }
+}
+} // namespace
+
 SDL_AppResult App::init()
 {
   {
@@ -74,6 +104,7 @@ void App::cleanup()
   imGuiLayer.cleanup(renderer.getDevice().getPtr());
   ros.cleanup();
   tileManager.cleanup();
+  releaseRegistryGpuResources(registry, allocator);
   registry.clear();
   allocator.cleanup();
   renderer.cleanup(window.getPtr());
