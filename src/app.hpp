@@ -1,6 +1,7 @@
 #pragma once
 
 #include "camera.hpp"
+#include "flight_boundary.hpp"
 #include "gpu/allocator.hpp"
 #include "gpu/renderer.hpp"
 #include "imgui_layer.hpp"
@@ -46,5 +47,6 @@ private:
   TextureManager textureManager;
   MeshManager meshManager;
   TileManager tileManager;
+  FlightBoundary flightBoundary;
 };
 } // namespace flb

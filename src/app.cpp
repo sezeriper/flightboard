@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "components.hpp"
 #include "math.hpp"
 #include "obj_loader.hpp"
 
@@ -171,6 +172,11 @@ SDL_AppResult App::init()
     registry.emplace<component::Transform>(tb2, getSurfaceAlignedTransform(tb2Coords));
     registry.emplace<component::Model>(tb2, tb2Model);
 
+    if (flightBoundary.init(registry, meshManager) != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
+
     renderer.initDebugSphere(allocator);
     renderer.initTileIndexBuffer(allocator);
 
@@ -185,6 +191,7 @@ void App::cleanup()
   imGuiLayer.cleanup(renderer.getDevice().getPtr());
   ros.cleanup();
   tileManager.cleanup();
+  flightBoundary.clear(registry);
   releaseRegistryGpuResources(registry, allocator, meshManager, textureManager);
   registry.clear();
   allocator.cleanup();
