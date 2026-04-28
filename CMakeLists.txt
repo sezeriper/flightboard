@@ -124,6 +124,7 @@ add_executable(flightboard
   src/app.cpp
   src/flight_boundary.cpp
   src/imgui_layer.cpp
+  src/no_fly_zones.cpp
   src/gpu/renderer.cpp
   src/ros.cpp
 )

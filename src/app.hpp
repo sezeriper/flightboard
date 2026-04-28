@@ -7,6 +7,7 @@
 #include "imgui_layer.hpp"
 #include "mesh_manager.hpp"
 #include "model.hpp"
+#include "no_fly_zones.hpp"
 #include "ros.hpp"
 #include "texture_manager.hpp"
 #include "tile_manager.hpp"
@@ -48,5 +49,6 @@ private:
   MeshManager meshManager;
   TileManager tileManager;
   FlightBoundary flightBoundary;
+  NoFlyZones noFlyZones;
 };
 } // namespace flb

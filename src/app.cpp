@@ -177,6 +177,11 @@ SDL_AppResult App::init()
       return SDL_APP_FAILURE;
     }
 
+    if (noFlyZones.init(registry, meshManager) != SDL_APP_CONTINUE)
+    {
+      return SDL_APP_FAILURE;
+    }
+
     renderer.initDebugSphere(allocator);
     renderer.initTileIndexBuffer(allocator);
 
@@ -191,6 +196,7 @@ void App::cleanup()
   imGuiLayer.cleanup(renderer.getDevice().getPtr());
   ros.cleanup();
   tileManager.cleanup();
+  noFlyZones.clear(registry);
   flightBoundary.clear(registry);
   releaseRegistryGpuResources(registry, allocator, meshManager, textureManager);
   registry.clear();
