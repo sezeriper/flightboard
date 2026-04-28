@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mesh_manager.hpp"
 #include "texture_manager.hpp"
 
 #include <SDL3/SDL_gpu.h>
@@ -37,6 +38,11 @@ struct Position
 struct TextureHandle
 {
   flb::TextureHandle value;
+};
+
+struct MeshHandle
+{
+  flb::MeshHandle value;
 };
 
 struct Visible
