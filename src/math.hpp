@@ -68,6 +68,30 @@ static glm::vec3 getSurfaceNormal(const GeoCoords& geo)
 }
 
 /**
+ * Returns the WGS84 ellipsoid surface normal at an ECEF position on or near the ellipsoid.
+ */
+static glm::vec3 getSurfaceNormal(const ECEFCoords& ecef)
+{
+  return glm::normalize(glm::dvec3{
+    ecef.x / SEMI_MAJOR_SQUARED,
+    ecef.y / SEMI_MAJOR_SQUARED,
+    ecef.z / SEMI_MINOR_SQUARED,
+  });
+}
+
+/**
+ * Projects an ECEF position to the WGS84 ellipsoid along its geocentric ray.
+ */
+static ECEFCoords projectToEllipsoidSurface(const ECEFCoords& ecef)
+{
+  const double scale = 1.0 / glm::sqrt(
+                               (ecef.x * ecef.x) / SEMI_MAJOR_SQUARED + (ecef.y * ecef.y) / SEMI_MAJOR_SQUARED +
+                               (ecef.z * ecef.z) / SEMI_MINOR_SQUARED);
+
+  return ecef * scale;
+}
+
+/**
  * Builds a local tangent frame for the given geographic coordinates.
  *
  * The returned matrix maps model-local +X to east, +Y to north, and +Z to the

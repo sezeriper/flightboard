@@ -31,10 +31,7 @@ public:
   SDL_GPUTexture* getSceneTexture() const { return sceneTarget.colorTexture; }
 
   SDL_AppResult draw(
-    entt::registry& registry,
-    const FPSCamera& camera,
-    const Window& window,
-    const ImGuiLayer* imGuiLayer = nullptr) const;
+    entt::registry& registry, const Camera& camera, const Window& window, const ImGuiLayer* imGuiLayer = nullptr) const;
 
   gpu::Device& getDevice() { return device; }
   const gpu::Device& getDevice() const { return device; }

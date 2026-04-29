@@ -101,6 +101,42 @@ void releaseRegistryGpuResources(
 }
 } // namespace
 
+Camera& App::activeCamera()
+{
+  return activeCameraMode == CameraMode::Perspective ? static_cast<Camera&>(perspectiveCamera)
+                                                     : static_cast<Camera&>(orthographicCamera);
+}
+
+const Camera& App::activeCamera() const
+{
+  return activeCameraMode == CameraMode::Perspective ? static_cast<const Camera&>(perspectiveCamera)
+                                                     : static_cast<const Camera&>(orthographicCamera);
+}
+
+bool App::isPerspectiveCameraActive() const { return activeCameraMode == CameraMode::Perspective; }
+
+void App::setCameraAspect(float aspect)
+{
+  perspectiveCamera.aspect = aspect;
+  orthographicCamera.aspect = aspect;
+}
+
+void App::toggleCameraMode()
+{
+  if (activeCameraMode == CameraMode::Perspective)
+  {
+    orthographicCamera.resetFrom(perspectiveCamera);
+    activeCameraMode = CameraMode::Orthographic;
+    cameraMouseLook = false;
+    SDL_SetWindowRelativeMouseMode(window.getPtr(), false);
+  }
+  else
+  {
+    perspectiveCamera.copyCommonStateFrom(orthographicCamera);
+    activeCameraMode = CameraMode::Perspective;
+  }
+}
+
 SDL_AppResult App::init()
 {
   {
@@ -124,10 +160,11 @@ SDL_AppResult App::init()
     allocator.init(renderer.getDevice().getPtr());
 
     GeoCoords startCoords{39.811124, 30.528396};
-    // camera.position = geoToECEF(startCoords, 1'000'000.0);
-    camera.position = geoToECEF(startCoords);
-    camera.up = getSurfaceNormal(startCoords);
-    camera.speed = 3000.0;
+    // perspectiveCamera.position = geoToECEF(startCoords, 1'000'000.0);
+    perspectiveCamera.position = geoToECEF(startCoords);
+    perspectiveCamera.up = getSurfaceNormal(startCoords);
+    perspectiveCamera.speed = 3000.0;
+    orthographicCamera.resetFrom(perspectiveCamera);
 
     textureManager.init(&allocator);
     meshManager.init(&allocator);
@@ -162,7 +199,7 @@ SDL_AppResult App::init()
     }
 
     auto vehicle = registry.create();
-    registry.emplace<component::Position>(vehicle, camera.position);
+    registry.emplace<component::Position>(vehicle, perspectiveCamera.position);
     registry.emplace<component::Transform>(vehicle, getSurfaceAlignedTransform(startCoords));
     registry.emplace<component::Model>(vehicle, vehicleModel);
 
@@ -218,24 +255,24 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
   {
     auto width = event->window.data1;
     auto height = event->window.data2;
-    camera.aspect = static_cast<float>(width) / static_cast<float>(height);
+    setCameraAspect(static_cast<float>(width) / static_cast<float>(height));
     return SDL_APP_CONTINUE;
   }
 
   if (event->type == SDL_EVENT_MOUSE_MOTION)
   {
-    if (cameraMouseLook)
+    if (cameraMouseLook && isPerspectiveCameraActive())
     {
       const auto dtx = event->motion.xrel;
       const auto dty = event->motion.yrel;
-      camera.updateMouse(dtx, dty);
+      perspectiveCamera.updateMouse(dtx, dty);
     }
     return SDL_APP_CONTINUE;
   }
 
   if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_RIGHT)
   {
-    if (imGuiLayer.isMainViewHovered() || !imGuiLayer.wantsMouseCapture())
+    if (isPerspectiveCameraActive() && (imGuiLayer.isMainViewHovered() || !imGuiLayer.wantsMouseCapture()))
     {
       cameraMouseLook = true;
       SDL_SetWindowRelativeMouseMode(window.getPtr(), true);
@@ -260,12 +297,8 @@ SDL_AppResult App::handleEvent(SDL_Event* event)
     const auto scrollAmount = glm::abs(event->wheel.y);
     const auto direction = event->wheel.y > 0.0f ? 1.0f : -1.0f;
 
-    if (direction > 0.0f)
-      camera.speed *= scrollAmount * 5.0f;
-    else
-      camera.speed /= scrollAmount * 5.0f;
-
-    camera.speed = glm::max(camera.speed, 10.0);
+    Camera& camera = activeCamera();
+    camera.zoom(direction * scrollAmount);
     return SDL_APP_CONTINUE;
   }
 
@@ -280,10 +313,11 @@ SDL_AppResult App::update(float dt)
   const bool* keyStates = SDL_GetKeyboardState(NULL);
   if (cameraMouseLook || imGuiLayer.isMainViewFocused() || !imGuiLayer.wantsKeyboardCapture())
   {
+    Camera& camera = activeCamera();
     camera.updateKeyboard(dt, keyStates);
   }
 
-  tileManager.update(camera, now());
+  tileManager.update(activeCamera(), now());
 
   return SDL_APP_CONTINUE;
 }
@@ -299,12 +333,12 @@ SDL_AppResult App::draw()
     {
       return SDL_APP_FAILURE;
     }
-    camera.aspect = mainViewRect.aspect();
+    setCameraAspect(mainViewRect.aspect());
   }
 
   imGuiLayer.endMainView(renderer.getSceneTexture());
   imGuiLayer.drawSidePanel();
   imGuiLayer.endFrame();
 
-  return renderer.draw(registry, camera, window, &imGuiLayer);
+  return renderer.draw(registry, activeCamera(), window, &imGuiLayer);
 }

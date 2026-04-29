@@ -31,6 +31,12 @@ public:
   TimePoint lastFrame{};
 
 private:
+  Camera& activeCamera();
+  const Camera& activeCamera() const;
+  bool isPerspectiveCameraActive() const;
+  void setCameraAspect(float aspect);
+  void toggleCameraMode();
+
   Window window;
   Renderer renderer;
   gpu::Allocator allocator;
@@ -39,7 +45,9 @@ private:
   float mouseSensitivity = 0.006f;
   float keyboardSensitivity = 4.0f;
   float scrollSensitivity = 0.6f;
-  FPSCamera camera;
+  CameraMode activeCameraMode = CameraMode::Perspective;
+  PerspectiveCamera perspectiveCamera;
+  OrthographicCamera orthographicCamera;
   bool cameraMouseLook = false;
   entt::registry registry;
 

@@ -50,7 +50,7 @@ public:
     registry->clear<component::Visible>();
 
     const auto cameraPosition = camera.position;
-    const auto frustum = createFrustum(camera);
+    const auto frustum = camera.createFrustum();
 
     QuadTree quadtree;
     {
@@ -71,7 +71,7 @@ public:
             return false;
 
           const auto distance2 = glm::distance2(cameraPosition, boundingSphere.position);
-          const double splitThreshold = boundingSphere.radius;
+          const double splitThreshold = boundingSphere.radius * 4.0;
 
           if (distance2 > splitThreshold * splitThreshold)
             return false;

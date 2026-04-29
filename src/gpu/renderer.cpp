@@ -14,7 +14,7 @@ using namespace flb;
 
 namespace
 {
-void renderMain(const gpu::RenderContext& context, entt::registry& registry, const FPSCamera& camera)
+void renderMain(const gpu::RenderContext& context, entt::registry& registry, const Camera& camera)
 {
   gpu::bindPipeline(context);
 
@@ -69,7 +69,7 @@ void renderMain(const gpu::RenderContext& context, entt::registry& registry, con
 }
 
 void renderTiles(
-  const gpu::RenderContext& context, entt::registry& registry, const FPSCamera& camera, SDL_GPUBuffer* tileIndexBuffer)
+  const gpu::RenderContext& context, entt::registry& registry, const Camera& camera, SDL_GPUBuffer* tileIndexBuffer)
 {
   gpu::bindPipeline(context);
   gpu::bindIndexBuffer(context, tileIndexBuffer);
@@ -97,7 +97,7 @@ void renderTiles(
 void renderDebug(
   const gpu::RenderContext& context,
   entt::registry& registry,
-  const FPSCamera& camera,
+  const Camera& camera,
   SDL_GPUBuffer* debugSphereVertexBuffer,
   SDL_GPUBuffer* debugSphereIndexBuffer,
   Uint32 debugSphereIndexCount)
@@ -129,7 +129,7 @@ void renderDebug(
 }
 
 void renderIndicators(
-  const gpu::RenderContext& context, entt::registry& registry, const FPSCamera& camera, float alphaScale)
+  const gpu::RenderContext& context, entt::registry& registry, const Camera& camera, float alphaScale)
 {
   gpu::bindPipeline(context);
 
@@ -426,7 +426,7 @@ SDL_AppResult Renderer::ensureSceneTarget(const ViewportRect& rect)
 }
 
 SDL_AppResult Renderer::draw(
-  entt::registry& registry, const FPSCamera& camera, const Window& window, const ImGuiLayer* imGuiLayer) const
+  entt::registry& registry, const Camera& camera, const Window& window, const ImGuiLayer* imGuiLayer) const
 {
   gpu::RenderContext context;
   context.pipeline = mainPipeline.get();
