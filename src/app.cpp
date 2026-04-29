@@ -337,7 +337,13 @@ SDL_AppResult App::draw()
   }
 
   imGuiLayer.endMainView(renderer.getSceneTexture());
-  imGuiLayer.drawSidePanel();
+  Camera& camera = activeCamera();
+  if (imGuiLayer.drawSidePanel(activeCameraMode, camera.speed))
+  {
+    toggleCameraMode();
+  }
+  imGuiLayer.drawActionsWindow();
+  imGuiLayer.drawTelemetryWindow();
   imGuiLayer.endFrame();
 
   return renderer.draw(registry, activeCamera(), window, &imGuiLayer);

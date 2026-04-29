@@ -8,6 +8,8 @@ struct ImFont;
 
 namespace flb
 {
+enum class CameraMode;
+
 struct ViewportRect
 {
   float x = 0.0f;
@@ -29,7 +31,9 @@ public:
   void beginFrame();
   ViewportRect beginMainView();
   void endMainView(SDL_GPUTexture* sceneTexture);
-  void drawSidePanel();
+  bool drawSidePanel(CameraMode cameraMode, double& cameraSpeed);
+  void drawActionsWindow();
+  void drawTelemetryWindow();
   void endFrame();
 
   void prepareDrawData(SDL_GPUCommandBuffer* commandBuffer) const;
@@ -47,12 +51,14 @@ private:
   void setupFonts();
   void setupTheme();
   void setupDefaultDockLayout(unsigned int dockspaceId, float width, float height);
+  void drawTopBar();
   void drawDockspace();
 
   ImGuiContext* context = nullptr;
   ImFont* defaultFont = nullptr;
   ImFont* boldFont = nullptr;
   ViewportRect mainViewRect;
+  float topBarHeight = 0.0f;
   float mainViewLogicalWidth = 0.0f;
   float mainViewLogicalHeight = 0.0f;
   bool mainViewHovered = false;
